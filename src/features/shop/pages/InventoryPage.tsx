@@ -1,51 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  Upload, 
-  Plus, 
-  MoreHorizontal,
-  Edit,
-  Trash
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
+import { Search, Filter, Download, Upload, Plus } from "lucide-react";
 
-const initialInventoryData = [
-  { id: "INV001", name: "Urea 50kg (IFFCO)", category: "Fertilizer", stock: 120, price: 266, status: "In Stock" },
-  { id: "INV002", name: "DAP 50kg (IFFCO)", category: "Fertilizer", stock: 45, price: 1350, status: "Low Stock" },
-  { id: "INV003", name: "MOP 50kg", category: "Fertilizer", stock: 8, price: 1700, status: "Critical" },
-  { id: "INV004", name: "Roundup Herbicide 1L", category: "Pesticide", stock: 35, price: 850, status: "In Stock" },
-  { id: "INV005", name: "NPK 19:19:19 1kg", category: "Water Soluble", stock: 0, price: 150, status: "Out of Stock" },
-  { id: "INV006", name: "Zinc Sulphate 5kg", category: "Micronutrient", stock: 65, price: 320, status: "In Stock" },
-];
+const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
+
+interface InventoryItem {
+  _id: string;
+  quantity: number;
+  productId: {
+    _id: string;
+    name: string;
+    category?: string;
+    sku?: string;
+    sellingPrice: number;
+    minimumStock: number;
+    status: string;
+  };
+}
 
 export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [inventory, setInventory] = useState(initialInventoryData);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleDelete = (id: string) => {
-    setInventory(inventory.filter((item) => item.id !== id));
-    toast.success("Product deleted successfully");
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const response = await fetch(`${API_BASE_URL}/inventory`, { headers });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          setInventory(data.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch inventory:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchInventory();
+  }, []);
+
+  const getStockStatus = (quantity: number, minimumStock: number) => {
+    if (quantity <= 0) return "Out of Stock";
+    if (quantity <= minimumStock * 0.5) return "Critical";
+    if (quantity <= minimumStock) return "Low Stock";
+    return "In Stock";
   };
 
   const getStatusBadge = (status: string) => {
@@ -62,6 +75,18 @@ export default function InventoryPage() {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  const filteredInventory = inventory.filter((item) =>
+    item.productId?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -100,61 +125,45 @@ export default function InventoryPage() {
             <Filter className="mr-2 h-4 w-4" /> Filter Options
           </Button>
         </div>
-        
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">ID</TableHead>
                 <TableHead>Product Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Price</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {inventory.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.id}</TableCell>
-                  <TableCell>{item.name}</TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell className="text-right font-medium">{item.stock}</TableCell>
-                  <TableCell className="text-right">₹{item.price}</TableCell>
-                  <TableCell>{getStatusBadge(item.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" /> Edit product
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
-                          <Trash className="mr-2 h-4 w-4" /> Delete product
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {filteredInventory.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    {searchTerm ? "No products match your search." : "No products in inventory. Add products to get started."}
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredInventory.map((item) => {
+                  const status = getStockStatus(item.quantity, item.productId?.minimumStock || 0);
+                  return (
+                    <TableRow key={item._id}>
+                      <TableCell className="font-medium">{item.productId?.name || "Unknown"}</TableCell>
+                      <TableCell>{item.productId?.category || "-"}</TableCell>
+                      <TableCell className="text-right font-medium">{item.quantity}</TableCell>
+                      <TableCell className="text-right">₹{item.productId?.sellingPrice || 0}</TableCell>
+                      <TableCell>{getStatusBadge(status)}</TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>
-        
+
         <div className="p-4 border-t flex items-center justify-between text-sm text-muted-foreground">
-          <div>Showing 1 to {inventory.length} of {inventory.length} entries</div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled>Previous</Button>
-            <Button variant="outline" size="sm" disabled>Next</Button>
-          </div>
+          <div>Showing {filteredInventory.length} of {inventory.length} entries</div>
         </div>
       </div>
     </div>

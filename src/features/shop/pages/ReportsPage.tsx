@@ -1,38 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from "recharts";
-import jsPDF from "jspdf";
-
-const monthlyData = [
-  { name: "Jan", sales: 4000, credit: 2400 },
-  { name: "Feb", sales: 3000, credit: 1398 },
-  { name: "Mar", sales: 2000, credit: 9800 },
-  { name: "Apr", sales: 2780, credit: 3908 },
-  { name: "May", sales: 1890, credit: 4800 },
-  { name: "Jun", sales: 2390, credit: 3800 },
-];
-
-const categoryData = [
-  { name: "Fertilizers", value: 65 },
-  { name: "Pesticides", value: 20 },
-  { name: "Seeds", value: 10 },
-  { name: "Micronutrients", value: 5 },
-];
-
-const COLORS = ["hsl(199 89% 48%)", "hsl(142 72% 29%)", "hsl(38 92% 50%)", "hsl(0 84.2% 60.2%)"];
+import { Download, BarChart3, PieChart as PieChartIcon } from "lucide-react";
+import { toast } from "sonner";
 
 export default function ReportsPage() {
   const handleGenerateReport = (reportName: string = "General Report") => {
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text(`${reportName} - Sri Ram Fertilizers`, 14, 22);
-    
-    doc.setFontSize(11);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 32);
-    doc.text("This is a system generated report.", 14, 42);
-    
-    doc.save(`${reportName.toLowerCase().replace(/ /g, '_')}.pdf`);
+    toast.info(`${reportName} generation will be available once sales data is recorded.`);
   };
 
   return (
@@ -48,9 +21,6 @@ export default function ReportsPage() {
           <Button variant="outline" size="sm" onClick={() => handleGenerateReport()}>
             <Download className="mr-2 h-4 w-4" /> PDF Report
           </Button>
-          <Button className="gradient-btn shadow-md text-white size-sm">
-            <Download className="mr-2 h-4 w-4" /> Export Excel
-          </Button>
         </div>
       </div>
 
@@ -59,48 +29,25 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle>Sales vs Credit (Last 6 Months)</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}`} />
-                <Tooltip cursor={{fill: 'transparent'}} />
-                <Legend />
-                <Bar dataKey="sales" name="Sales (₹)" fill="hsl(199 89% 48%)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="credit" name="Credit (₹)" fill="hsl(38 92% 50%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+            <BarChart3 className="h-12 w-12 mb-4 opacity-20" />
+            <p className="font-medium">No sales data available yet</p>
+            <p className="text-sm">Charts will appear once you start recording sales.</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Sales by Category</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-center items-center">
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent = 0 }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {categoryData.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          <CardContent className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+            <PieChartIcon className="h-12 w-12 mb-4 opacity-20" />
+            <p className="font-medium">No category data available yet</p>
+            <p className="text-sm">Charts will appear once you start recording sales.</p>
           </CardContent>
         </Card>
       </div>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Available Reports</CardTitle>

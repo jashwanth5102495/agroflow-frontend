@@ -1,16 +1,51 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
+
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Successfully logged in");
-    navigate("/shop");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        localStorage.setItem("token", data.data.token);
+        localStorage.setItem("user", JSON.stringify(data.data.user));
+        localStorage.setItem("shop", JSON.stringify(data.data.shop));
+        toast.success("Successfully logged in");
+        
+        // Navigate based on role
+        if (data.data.user?.role === "ADMIN") {
+          navigate("/admin");
+        } else {
+          navigate("/shop");
+        }
+      } else {
+        toast.error(data.message || "Invalid credentials");
+      }
+    } catch (err) {
+      toast.error("Cannot connect to server. Please ensure the backend is running.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -24,8 +59,15 @@ export default function LoginPage() {
 
       <form className="space-y-6" onSubmit={handleLogin}>
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" placeholder="name@example.com" required />
+          <Label htmlFor="phone">Phone Number</Label>
+          <Input
+            id="phone"
+            type="tel"
+            placeholder="e.g. 9876543210"
+            required
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
         </div>
         
         <div className="space-y-2">
@@ -35,7 +77,13 @@ export default function LoginPage() {
               Forgot Password?
             </Link>
           </div>
-          <Input id="password" type="password" required />
+          <Input
+            id="password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
 
         <div className="flex items-center space-x-2">
@@ -43,8 +91,8 @@ export default function LoginPage() {
           <Label htmlFor="remember" className="text-sm font-normal">Remember me</Label>
         </div>
 
-        <Button type="submit" className="w-full gradient-btn shadow-md py-6 text-lg">
-          Log In
+        <Button type="submit" className="w-full gradient-btn shadow-md py-6 text-lg" disabled={isLoading}>
+          {isLoading ? "Logging in..." : "Log In"}
         </Button>
       </form>
 
@@ -54,14 +102,6 @@ export default function LoginPage() {
           Register your shop
         </Link>
       </p>
-
-      <div className="pt-4 flex justify-center">
-        <Link to="/shop">
-          <Button variant="outline" size="sm" className="text-muted-foreground">
-            Skip for testing
-          </Button>
-        </Link>
-      </div>
     </div>
   );
 }

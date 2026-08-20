@@ -1,17 +1,73 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+
+const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
 
 export default function RegisterShopPage() {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Shop registered successfully");
-    navigate("/shop");
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+
+    const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
+
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const body = {
+        shopName: formData.get("shopName") as string,
+        ownerName: formData.get("ownerName") as string,
+        phone: formData.get("phone") as string,
+        email: (formData.get("email") as string) || undefined,
+        password,
+        address: formData.get("address") as string,
+        village: (formData.get("village") as string) || undefined,
+        district: formData.get("district") as string,
+        state: formData.get("state") as string,
+        pincode: formData.get("pincode") as string,
+        gstNumber: (formData.get("gstNumber") as string) || undefined,
+      };
+
+      const response = await fetch(`${API_BASE_URL}/auth/register-shop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        localStorage.setItem("token", data.data.token);
+        localStorage.setItem("user", JSON.stringify(data.data.user));
+        localStorage.setItem("shop", JSON.stringify(data.data.shop));
+        toast.success("Shop registered successfully!");
+        navigate("/shop");
+      } else {
+        toast.error(data.message || "Registration failed");
+      }
+    } catch (err) {
+      toast.error("Cannot connect to server. Please ensure the backend is running.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -28,93 +84,67 @@ export default function RegisterShopPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="shopName">Shop Name</Label>
-              <Input id="shopName" required placeholder="Sri Ram Fertilizers" />
+              <Input id="shopName" name="shopName" required placeholder="Sri Ram Fertilizers" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="ownerName">Owner Name</Label>
-              <Input id="ownerName" required placeholder="John Doe" />
+              <Input id="ownerName" name="ownerName" required placeholder="John Doe" />
             </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="mobile">Mobile Number</Label>
-              <Input id="mobile" required placeholder="+91 9876543210" />
+              <Label htmlFor="phone">Mobile Number</Label>
+              <Input id="phone" name="phone" required placeholder="9876543210" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required placeholder="john@example.com" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="gst">GST Number (Optional)</Label>
-              <Input id="gst" placeholder="22AAAAA0000A1Z5" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="agentCode">Agent Code</Label>
-              <Input id="agentCode" placeholder="AGT-1234" />
+              <Input id="email" name="email" type="email" placeholder="john@example.com" />
             </div>
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="gstNumber">GST Number (Optional)</Label>
+            <Input id="gstNumber" name="gstNumber" placeholder="22AAAAA0000A1Z5" />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="address">Address</Label>
-            <Input id="address" required placeholder="123 Market Street" />
+            <Input id="address" name="address" required placeholder="123 Market Street" />
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="village">Village</Label>
-              <Input id="village" required />
+              <Input id="village" name="village" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="district">District</Label>
-              <Input id="district" required />
+              <Input id="district" name="district" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="state">State</Label>
-              <Input id="state" required />
+              <Input id="state" name="state" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="pincode">Pincode</Label>
-              <Input id="pincode" required />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Subscription Plan</Label>
-              <Select defaultValue="basic">
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="pro">Pro</SelectItem>
-                  <SelectItem value="enterprise">Enterprise</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="subAmount">Subscription Amount (₹)</Label>
-              <Input id="subAmount" type="number" required placeholder="e.g. 1500" />
+              <Input id="pincode" name="pincode" required />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-6">
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" required />
+              <Input id="password" name="password" type="password" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input id="confirmPassword" type="password" required />
+              <Input id="confirmPassword" name="confirmPassword" type="password" required />
             </div>
           </div>
 
-          <Button type="submit" className="w-full gradient-btn shadow-md py-6 text-lg mt-4">
-            Complete Registration
+          <Button type="submit" className="w-full gradient-btn shadow-md py-6 text-lg mt-4" disabled={isLoading}>
+            {isLoading ? "Registering..." : "Complete Registration"}
           </Button>
         </form>
       </div>
@@ -125,14 +155,6 @@ export default function RegisterShopPage() {
           Log in
         </Link>
       </p>
-
-      <div className="pt-2 flex justify-center pb-8">
-        <Link to="/shop">
-          <Button variant="outline" size="sm" className="text-muted-foreground">
-            Skip for testing
-          </Button>
-        </Link>
-      </div>
     </div>
   );
 }

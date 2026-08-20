@@ -1,51 +1,107 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Trash2, ReceiptText } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+
+const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
+
+interface Product {
+  _id: string;
+  name: string;
+  sellingPrice: number;
+  category?: string;
+}
+
+interface CartItem {
+  productId: string;
+  name: string;
+  price: number;
+  qty: number;
+  total: number;
+}
 
 export default function SalesPage() {
-  const [cart] = useState([
-    { id: 1, name: "Urea 50kg", price: 266, qty: 2, total: 532 },
-    { id: 2, name: "DAP 50kg", price: 1350, qty: 1, total: 1350 }
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [farmers, setFarmers] = useState<any[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  const getHeaders = () => {
+    const token = localStorage.getItem("token");
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [productsRes, farmersRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/products`, { headers: getHeaders() }),
+          fetch(`${API_BASE_URL}/farmers`, { headers: getHeaders() }),
+        ]);
+        const productsData = await productsRes.json();
+        const farmersData = await farmersRes.json();
+
+        if (productsRes.ok && productsData.success) {
+          setProducts(productsData.data || []);
+        }
+        if (farmersRes.ok && farmersData.success) {
+          setFarmers(farmersData.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const addToCart = (product: Product) => {
+    const existing = cart.find((item) => item.productId === product._id);
+    if (existing) {
+      setCart(
+        cart.map((item) =>
+          item.productId === product._id
+            ? { ...item, qty: item.qty + 1, total: (item.qty + 1) * item.price }
+            : item
+        )
+      );
+    } else {
+      setCart([...cart, { productId: product._id, name: product.name, price: product.sellingPrice, qty: 1, total: product.sellingPrice }]);
+    }
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart(cart.filter((item) => item.productId !== productId));
+  };
 
   const grandTotal = cart.reduce((acc, item) => acc + item.total, 0);
 
-  const handleGenerateInvoice = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text("Invoice - Sri Ram Fertilizers", 14, 22);
-    
-    doc.setFontSize(11);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 32);
-    
-    autoTable(doc, {
-      startY: 40,
-      head: [["Item", "Quantity", "Price", "Total"]],
-      body: cart.map(item => [
-        item.name,
-        item.qty.toString(),
-        `Rs ${item.price}`,
-        `Rs ${item.total}`
-      ]),
-      foot: [["", "", "Grand Total", `Rs ${grandTotal}`]]
-    });
-    
-    doc.save("invoice.pdf");
-  };
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -65,32 +121,40 @@ export default function SalesPage() {
                 <CardTitle>Products</CardTitle>
                 <div className="relative w-64">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search products..." className="pl-9 bg-muted/50" />
+                  <Input
+                    placeholder="Search products..."
+                    className="pl-9 bg-muted/50"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
               </div>
             </CardHeader>
             <CardContent className="flex-1 p-4 grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto max-h-[500px]">
-              {[
-                { name: "Urea 50kg", price: 266, stock: 120 },
-                { name: "DAP 50kg", price: 1350, stock: 45 },
-                { name: "MOP 50kg", price: 1700, stock: 8 },
-                { name: "Zinc 5kg", price: 320, stock: 65 },
-                { name: "NPK 19:19", price: 150, stock: 10 },
-                { name: "Roundup 1L", price: 850, stock: 35 },
-              ].map((product, idx) => (
-                <div key={idx} className="border rounded-lg p-3 hover:border-primary hover:shadow-sm cursor-pointer transition-all bg-card flex flex-col justify-between h-28">
-                  <div>
-                    <h4 className="font-medium text-sm line-clamp-2">{product.name}</h4>
-                    <p className="text-xs text-muted-foreground mt-1">Stock: {product.stock}</p>
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="font-semibold text-primary">₹{product.price}</span>
-                    <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full bg-primary/10 hover:bg-primary hover:text-white">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+              {filteredProducts.length === 0 ? (
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  {searchTerm ? "No products match your search." : "No products available. Add products in Inventory first."}
                 </div>
-              ))}
+              ) : (
+                filteredProducts.map((product) => (
+                  <div
+                    key={product._id}
+                    className="border rounded-lg p-3 hover:border-primary hover:shadow-sm cursor-pointer transition-all bg-card flex flex-col justify-between h-28"
+                    onClick={() => addToCart(product)}
+                  >
+                    <div>
+                      <h4 className="font-medium text-sm line-clamp-2">{product.name}</h4>
+                      <p className="text-xs text-muted-foreground mt-1">{product.category || ""}</p>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="font-semibold text-primary">₹{product.sellingPrice}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full bg-primary/10 hover:bg-primary hover:text-white">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>
@@ -108,8 +172,9 @@ export default function SalesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="walkin">Walk-in Customer</SelectItem>
-                    <SelectItem value="f001">Ramesh Patel (F001)</SelectItem>
-                    <SelectItem value="f002">Suresh Kumar (F002)</SelectItem>
+                    {farmers.map((f: any) => (
+                      <SelectItem key={f._id} value={f._id}>{f.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -125,60 +190,40 @@ export default function SalesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cart.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium text-sm py-3">
-                        {item.name}
-                        <div className="text-xs text-muted-foreground">₹{item.price}/unit</div>
-                      </TableCell>
-                      <TableCell className="text-center p-0">
-                        <Input 
-                          type="number" 
-                          value={item.qty} 
-                          className="w-12 h-8 text-center mx-auto p-1"
-                          readOnly
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium py-3">₹{item.total}</TableCell>
-                      <TableCell className="py-3 px-2">
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                  {cart.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Click products to add them to the cart
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    cart.map((item) => (
+                      <TableRow key={item.productId}>
+                        <TableCell className="font-medium text-sm py-3">
+                          {item.name}
+                          <div className="text-xs text-muted-foreground">₹{item.price}/unit</div>
+                        </TableCell>
+                        <TableCell className="text-center font-medium">{item.qty}</TableCell>
+                        <TableCell className="text-right font-medium py-3">₹{item.total}</TableCell>
+                        <TableCell className="py-3 px-2">
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => removeFromCart(item.productId)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
             <CardFooter className="flex flex-col border-t bg-muted/10 pt-4 gap-4">
               <div className="w-full space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Subtotal</span>
-                  <span>₹{grandTotal}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Discount</span>
-                  <span>₹0</span>
-                </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2">
                   <span>Total</span>
-                  <span className="text-primary">₹{grandTotal}</span>
+                  <span className="text-primary">₹{grandTotal.toLocaleString("en-IN")}</span>
                 </div>
               </div>
-              
-              <div className="w-full space-y-2">
-                <Label>Payment Type</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="default" className="w-full bg-success hover:bg-success/90">
-                    Cash
-                  </Button>
-                  <Button variant="outline" className="w-full border-warning text-warning hover:bg-warning/10">
-                    Credit
-                  </Button>
-                </div>
-              </div>
-              
-              <Button className="w-full gradient-btn shadow-md py-6 text-lg mt-2" onClick={handleGenerateInvoice}>
+              <Button className="w-full gradient-btn shadow-md py-6 text-lg mt-2" disabled={cart.length === 0}>
                 <ReceiptText className="mr-2 h-5 w-5" /> Generate Invoice
               </Button>
             </CardFooter>

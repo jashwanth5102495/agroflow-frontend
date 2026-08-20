@@ -11,8 +11,13 @@ import SalesPage from "@/features/shop/pages/SalesPage";
 import CreditLedgerPage from "@/features/shop/pages/CreditLedgerPage";
 import ReportsPage from "@/features/shop/pages/ReportsPage";
 import AdminDashboardPage from "@/features/admin/pages/AdminDashboardPage";
+import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
+import AdminAgentsPage from "@/features/admin/pages/AdminAgentsPage";
+import AdminReportsPage from "@/features/admin/pages/AdminReportsPage";
+import WhatsAppGatewayPage from "@/features/admin/pages/WhatsAppGatewayPage";
 import SettingsPage from "@/features/shop/pages/SettingsPage";
 import SoftwareBillingPage from "@/features/shop/pages/SoftwareBillingPage";
+import NotificationPage from "@/features/shop/pages/NotificationPage";
 
 export const router = createBrowserRouter([
   {
@@ -69,6 +74,10 @@ export const router = createBrowserRouter([
         path: "billing",
         element: <SoftwareBillingPage />,
       },
+      {
+        path: "notification",
+        element: <NotificationPage />,
+      },
     ],
   },
   {
@@ -78,6 +87,22 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <AdminDashboardPage />,
+      },
+      {
+        path: "agents",
+        element: <AdminAgentsPage />,
+      },
+      {
+        path: "shops",
+        element: <AdminShopsPage />,
+      },
+      {
+        path: "reports",
+        element: <AdminReportsPage />,
+      },
+      {
+        path: "whatsapp-gateway",
+        element: <WhatsAppGatewayPage />,
       },
     ],
   },

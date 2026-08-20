@@ -17,11 +17,13 @@ import {
   FileText,
   Sun,
   Moon,
-  CreditCard
+  CreditCard,
+  Lock,
+  ArrowRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +42,7 @@ const shopLinks = [
   { name: "Credit Ledger", href: "/shop/credit", icon: BookOpen },
   { name: "Reports", href: "/shop/reports", icon: BarChart3 },
   { name: "Software Billing", href: "/shop/billing", icon: CreditCard },
+  { name: "Notification", href: "/shop/notification", icon: Bell },
 ];
 
 const adminLinks = [
@@ -47,6 +50,7 @@ const adminLinks = [
   { name: "Agents", href: "/admin/agents", icon: UserSquare2 },
   { name: "Shops", href: "/admin/shops", icon: Store },
   { name: "Reports", href: "/admin/reports", icon: FileText },
+  { name: "WhatsApp Gateway", href: "/admin/whatsapp-gateway", icon: Settings },
 ];
 
 const agentLinks = [
@@ -106,6 +110,22 @@ export default function DashboardLayout() {
   } else if (currentPath.startsWith("/agent")) {
     sidebarLinks = agentLinks;
   }
+
+  const shopData = localStorage.getItem("shop");
+  const userData = localStorage.getItem("user");
+  const currentShop = shopData ? JSON.parse(shopData) : null;
+  const currentUser = userData ? JSON.parse(userData) : null;
+
+  const displayName = currentShop?.name || currentUser?.name || "AgroFlow User";
+  const displaySubtext = currentUser?.phone || currentShop?.phone || currentUser?.email || "Shop Admin";
+  const initials = displayName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase() || "AF";
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("shop");
+    navigate("/auth/login");
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -168,7 +188,7 @@ export default function DashboardLayout() {
           </Link>
           <button
             onClick={() => {
-              navigate("/auth/login");
+              handleLogout();
               setMobileMenuOpen(false);
             }}
             className="flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-md text-destructive hover:bg-destructive/10 transition-colors"
@@ -229,17 +249,16 @@ export default function DashboardLayout() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="https://ui.shadcn.com/avatars/01.png" alt="@shopowner" />
-                    <AvatarFallback>SO</AvatarFallback>
+                    <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Sri Ram Fertilizers</p>
+                    <p className="text-sm font-medium leading-none">{displayName}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      owner@sriram.com
+                      {displaySubtext}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -247,14 +266,11 @@ export default function DashboardLayout() {
                 <DropdownMenuItem onClick={() => toast.info("Profile page coming soon")}>
                   Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => toast.info("Billing page coming soon")}>
-                  Billing
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/settings")}>
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive" onClick={() => navigate("/auth/login")}>
+                <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>

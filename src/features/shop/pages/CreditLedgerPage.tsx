@@ -1,28 +1,60 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Search, IndianRupee, ArrowDownRight, ArrowUpRight } from "lucide-react";
 
-const ledgerData = [
-  { id: "TX001", date: "2023-10-25", farmer: "Dilip Desai", type: "Credit", amount: 15000, balance: 28000, ref: "INV-2023-1045" },
-  { id: "TX002", date: "2023-10-24", farmer: "Ramesh Patel", type: "Payment", amount: 5000, balance: 12500, ref: "RCP-102" },
-  { id: "TX003", date: "2023-10-20", farmer: "Suresh Kumar", type: "Payment", amount: 12000, balance: 0, ref: "RCP-101" },
-  { id: "TX004", date: "2023-10-18", farmer: "Anand Singh", type: "Credit", amount: 4500, balance: 4500, ref: "INV-2023-0982" },
-  { id: "TX005", date: "2023-10-15", farmer: "Ramesh Patel", type: "Credit", amount: 17500, balance: 17500, ref: "INV-2023-0950" },
-];
+const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
 
 export default function CreditLedgerPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [totalOutstanding, setTotalOutstanding] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const response = await fetch(`${API_BASE_URL}/credits`, { headers });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          const creditData = data.data;
+          if (Array.isArray(creditData)) {
+            setAccounts(creditData);
+            setTotalOutstanding(creditData.reduce((sum: number, a: any) => sum + (a.balance || 0), 0));
+          } else if (creditData?.accounts) {
+            setAccounts(creditData.accounts);
+            setTotalOutstanding(creditData.summary?.totalOutstanding || 0);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch credits:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCredits();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -45,26 +77,28 @@ export default function CreditLedgerPage() {
             <IndianRupee className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">₹1,24,500</div>
-            <p className="text-xs text-muted-foreground">From 45 farmers</p>
+            <div className="text-2xl font-bold text-primary">₹{totalOutstanding.toLocaleString("en-IN")}</div>
+            <p className="text-xs text-muted-foreground">From {accounts.length} account(s)</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Credit Given (This Month)</CardTitle>
+            <CardTitle className="text-sm font-medium">Credit Accounts</CardTitle>
             <ArrowUpRight className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">₹45,000</div>
+            <div className="text-2xl font-bold text-warning">{accounts.filter((a: any) => a.balance > 0).length}</div>
+            <p className="text-xs text-muted-foreground">With outstanding balance</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Payments Received (This Month)</CardTitle>
+            <CardTitle className="text-sm font-medium">Settled Accounts</CardTitle>
             <ArrowDownRight className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">₹32,500</div>
+            <div className="text-2xl font-bold text-success">{accounts.filter((a: any) => a.balance <= 0).length}</div>
+            <p className="text-xs text-muted-foreground">Fully paid</p>
           </CardContent>
         </Card>
       </div>
@@ -74,55 +108,41 @@ export default function CreditLedgerPage() {
           <div className="relative w-full sm:w-80">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by farmer name or receipt..."
+              placeholder="Search by farmer name..."
               className="pl-9 bg-muted/50"
               value={searchTerm}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              Download PDF
-            </Button>
-            <Button variant="outline" size="sm">
-              Export Excel
-            </Button>
-          </div>
         </div>
-        
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Transaction ID</TableHead>
                 <TableHead>Farmer</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Reference</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="text-right">Credit Limit</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ledgerData.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell className="text-muted-foreground">{tx.date}</TableCell>
-                  <TableCell className="font-medium">{tx.id}</TableCell>
-                  <TableCell className="font-medium">{tx.farmer}</TableCell>
-                  <TableCell>
-                    {tx.type === "Credit" ? (
-                      <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Credit Given</Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-success/10 text-success border-success/20">Payment</Badge>
-                    )}
+              {accounts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                    No credit accounts found. Credit accounts are created when sales are made on credit.
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{tx.ref}</TableCell>
-                  <TableCell className={`text-right font-medium ${tx.type === "Credit" ? "text-warning" : "text-success"}`}>
-                    {tx.type === "Credit" ? "+" : "-"}₹{tx.amount.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">₹{tx.balance.toLocaleString()}</TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                accounts.map((account: any) => (
+                  <TableRow key={account._id}>
+                    <TableCell className="font-medium">{account.farmerId?.name || "Unknown"}</TableCell>
+                    <TableCell className="text-right">₹{(account.creditLimit || 0).toLocaleString("en-IN")}</TableCell>
+                    <TableCell className={`text-right font-medium ${account.balance > 0 ? "text-destructive" : "text-success"}`}>
+                      ₹{(account.balance || 0).toLocaleString("en-IN")}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
