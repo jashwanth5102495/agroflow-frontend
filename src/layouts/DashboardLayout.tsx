@@ -32,7 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
 
 const shopLinks = [
   { name: "Dashboard", href: "/shop", icon: LayoutDashboard },
@@ -126,6 +125,33 @@ export default function DashboardLayout() {
     localStorage.removeItem("shop");
     navigate("/auth/login");
   };
+
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>(() => {
+    return currentShop?.subscriptionStatus || "ACTIVE";
+  });
+
+  useEffect(() => {
+    const checkSub = async () => {
+      const token = localStorage.getItem("token");
+      if (!token || !currentPath.startsWith("/shop")) return;
+      try {
+        const res = await fetch("http://127.0.0.1:5000/api/v1/subscription/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const d = await res.json();
+        if (res.ok && d.success && d.data) {
+          setSubscriptionStatus(d.data.subscriptionStatus);
+        }
+      } catch (err) {
+        // Backend not reachable or offline
+      }
+    };
+    checkSub();
+  }, [location.pathname]);
+
+  const isSubLocked = currentPath.startsWith("/shop") && 
+    currentPath !== "/shop/billing" && 
+    subscriptionStatus === "PENDING_PAYMENT";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -263,8 +289,8 @@ export default function DashboardLayout() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => toast.info("Profile page coming soon")}>
-                  Profile
+                <DropdownMenuItem onClick={() => navigate("/shop/billing")}>
+                  Software Billing & Plans
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/settings")}>
                   Settings
@@ -278,9 +304,39 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        {/* Main Area */}
-        <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6 lg:p-8">
-          <Outlet />
+        {/* Main Area with blur lock overlay when pending payment */}
+        <main className="flex-1 overflow-y-auto bg-background p-4 md:p-6 lg:p-8 relative">
+          <div className={isSubLocked ? "filter blur-md pointer-events-none select-none" : ""}>
+            <Outlet />
+          </div>
+
+          {isSubLocked && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm">
+              <div className="max-w-md w-full bg-card border border-primary/20 shadow-2xl rounded-2xl p-6 text-center space-y-5 animate-in fade-in zoom-in duration-300">
+                <div className="mx-auto bg-primary/10 text-primary p-4 rounded-full w-16 h-16 flex items-center justify-center shadow-inner">
+                  <Lock className="h-8 w-8" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-bold tracking-tight text-foreground">
+                    Subscription Activation Required
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Your store registration is complete. To unlock full real-time POS billing, inventory tracking, credit ledger, and daily WhatsApp reports, please activate your AutoPay plan.
+                  </p>
+                </div>
+
+                <Button
+                  size="lg"
+                  className="w-full gradient-btn shadow-md py-6 text-base font-semibold"
+                  onClick={() => navigate("/shop/billing")}
+                >
+                  <CreditCard className="mr-2 h-5 w-5" />
+                  Go to Billing & Activate AutoPay
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
