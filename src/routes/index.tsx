@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import AuthLayout from "@/layouts/AuthLayout";
 import DashboardLayout from "@/layouts/DashboardLayout";
 import LoginPage from "@/features/auth/pages/LoginPage";
@@ -14,15 +14,33 @@ import AdminDashboardPage from "@/features/admin/pages/AdminDashboardPage";
 import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
 import AdminAgentsPage from "@/features/admin/pages/AdminAgentsPage";
 import AdminReportsPage from "@/features/admin/pages/AdminReportsPage";
+import AdminLoginPage from "@/features/admin/pages/AdminLoginPage";
 import WhatsAppGatewayPage from "@/features/admin/pages/WhatsAppGatewayPage";
 import SettingsPage from "@/features/shop/pages/SettingsPage";
 import SoftwareBillingPage from "@/features/shop/pages/SoftwareBillingPage";
 import NotificationPage from "@/features/shop/pages/NotificationPage";
 
+// Secure Admin Route Guard
+function AdminGuard() {
+  const token = localStorage.getItem("token");
+  const userData = localStorage.getItem("user");
+  const user = userData ? JSON.parse(userData) : null;
+
+  if (!token || user?.role !== "ADMIN") {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  return <Outlet />;
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <Navigate to="/auth/login" replace />,
+  },
+  {
+    path: "/admin/login",
+    element: <AdminLoginPage />,
   },
   {
     path: "/auth",
@@ -82,27 +100,32 @@ export const router = createBrowserRouter([
   },
   {
     path: "/admin",
-    element: <DashboardLayout />,
+    element: <AdminGuard />,
     children: [
       {
-        index: true,
-        element: <AdminDashboardPage />,
-      },
-      {
-        path: "agents",
-        element: <AdminAgentsPage />,
-      },
-      {
-        path: "shops",
-        element: <AdminShopsPage />,
-      },
-      {
-        path: "reports",
-        element: <AdminReportsPage />,
-      },
-      {
-        path: "whatsapp-gateway",
-        element: <WhatsAppGatewayPage />,
+        element: <DashboardLayout />,
+        children: [
+          {
+            index: true,
+            element: <AdminDashboardPage />,
+          },
+          {
+            path: "agents",
+            element: <AdminAgentsPage />,
+          },
+          {
+            path: "shops",
+            element: <AdminShopsPage />,
+          },
+          {
+            path: "reports",
+            element: <AdminReportsPage />,
+          },
+          {
+            path: "whatsapp-gateway",
+            element: <WhatsAppGatewayPage />,
+          },
+        ],
       },
     ],
   },
@@ -115,5 +138,9 @@ export const router = createBrowserRouter([
         element: <SettingsPage />,
       },
     ],
+  },
+  {
+    path: "*",
+    element: <Navigate to="/auth/login" replace />,
   },
 ]);
