@@ -32,6 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { API_BASE_URL } from "@/config/api";
 
 const shopLinks = [
   { name: "Dashboard", href: "/shop", icon: LayoutDashboard },
@@ -135,7 +136,7 @@ export default function DashboardLayout() {
       const token = localStorage.getItem("token");
       if (!token || !currentPath.startsWith("/shop")) return;
       try {
-        const res = await fetch("http://127.0.0.1:5000/api/v1/subscription/status", {
+        const res = await fetch(`${API_BASE_URL}/subscription/status`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const d = await res.json();

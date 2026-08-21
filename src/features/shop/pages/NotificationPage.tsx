@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Bell, Phone, Clock, Send, Save, AlertCircle } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 export default function NotificationPage() {
   const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -16,7 +17,7 @@ export default function NotificationPage() {
   const [isStandaloneMode, setIsStandaloneMode] = useState(false);
 
   const token = localStorage.getItem("token");
-  const API_BASE_URL = "http://127.0.0.1:5000/api/v1/notifications";
+  const NOTIFICATIONS_API = `${API_BASE_URL}/notifications`;
 
   // Fetch config on mount
   useEffect(() => {
@@ -28,7 +29,7 @@ export default function NotificationPage() {
           headers["Authorization"] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${API_BASE_URL}/config`, {
+        const response = await fetch(`${NOTIFICATIONS_API}/config`, {
           headers,
         });
 
@@ -88,7 +89,7 @@ export default function NotificationPage() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}/config`, {
+      const response = await fetch(`${NOTIFICATIONS_API}/config`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -129,7 +130,7 @@ export default function NotificationPage() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}/test-message`, {
+      const response = await fetch(`${NOTIFICATIONS_API}/test-message`, {
         method: "POST",
         headers,
       });

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Settings, RefreshCw, CheckCircle, QrCode, ShieldCheck } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 export default function WhatsAppGatewayPage() {
   const [status, setStatus] = useState<"DISCONNECTED" | "QR_READY" | "CONNECTED">("DISCONNECTED");
@@ -10,7 +11,7 @@ export default function WhatsAppGatewayPage() {
   const [isStandaloneMode, setIsStandaloneMode] = useState(false);
 
   const token = localStorage.getItem("token");
-  const API_BASE_URL = "http://127.0.0.1:5000/api/v1/notifications";
+  const NOTIFICATIONS_API = `${API_BASE_URL}/notifications`;
 
   const fetchStatus = async (showToast = false) => {
     try {
@@ -19,7 +20,7 @@ export default function WhatsAppGatewayPage() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}/gateway-status`, {
+      const response = await fetch(`${NOTIFICATIONS_API}/gateway-status`, {
         headers,
       });
 

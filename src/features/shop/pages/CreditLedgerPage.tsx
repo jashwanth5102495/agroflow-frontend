@@ -11,8 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Search, IndianRupee, ArrowDownRight, ArrowUpRight } from "lucide-react";
-
-const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
+import { API_BASE_URL } from "@/config/api";
 
 export default function CreditLedgerPage() {
   const [searchTerm, setSearchTerm] = useState("");

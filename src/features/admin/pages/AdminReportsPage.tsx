@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Download, FileText, BarChart3, Store } from "lucide-react";
 import { toast } from "sonner";
-
-const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
+import { API_BASE_URL } from "@/config/api";
 
 export default function AdminReportsPage() {
   const [stats, setStats] = useState({

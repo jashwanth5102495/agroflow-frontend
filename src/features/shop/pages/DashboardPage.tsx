@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, Users, IndianRupee, TrendingUp } from "lucide-react";
-
-const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
+import { API_BASE_URL } from "@/config/api";
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState({

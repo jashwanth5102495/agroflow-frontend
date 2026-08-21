@@ -13,8 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Trash2, ReceiptText } from "lucide-react";
-
-const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
+import { API_BASE_URL } from "@/config/api";
 
 interface Product {
   _id: string;

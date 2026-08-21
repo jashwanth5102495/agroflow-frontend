@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Store, IndianRupee, Activity } from "lucide-react";
-
-const API_BASE_URL = "http://127.0.0.1:5000/api/v1";
+import { API_BASE_URL } from "@/config/api";
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState({
