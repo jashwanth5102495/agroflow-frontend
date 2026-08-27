@@ -68,15 +68,19 @@ export default function SalesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsRes, farmersRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/products`, { headers: getHeaders() }),
+        const [inventoryRes, farmersRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/inventory?limit=1000`, { headers: getHeaders() }),
           fetch(`${API_BASE_URL}/farmers`, { headers: getHeaders() }),
         ]);
-        const productsData = await productsRes.json();
+        const inventoryData = await inventoryRes.json();
         const farmersData = await farmersRes.json();
 
-        if (productsRes.ok && productsData.success) {
-          setProducts(productsData.data || []);
+        if (inventoryRes.ok && inventoryData.success) {
+          const mappedProducts = inventoryData.data.map((item: any) => ({
+            ...item.productId,
+            stock: item.quantity
+          }));
+          setProducts(mappedProducts || []);
         }
         if (farmersRes.ok && farmersData.success) {
           setFarmers(farmersData.data || []);
