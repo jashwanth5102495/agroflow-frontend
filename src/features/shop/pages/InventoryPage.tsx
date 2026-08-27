@@ -145,7 +145,7 @@ export default function InventoryPage() {
         headers,
         body: JSON.stringify({
           productId,
-          quantity: Number(newProduct.initialStock),
+          quantityChange: Number(newProduct.initialStock),
           type: "ADJUSTMENT",
           reason: "Initial Stock"
         })
