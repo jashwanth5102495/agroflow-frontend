@@ -3,18 +3,85 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { IndianRupee, Search, ChevronDown, ChevronRight, ArrowUpRight, CheckCircle } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 import { toast } from "sonner";
+
+// ─── Inline payment input rendered inside each expanded farmer row ────────────
+function InlinePayment({ account, getHeaders, onSuccess }: {
+  account: any;
+  getHeaders: () => Record<string, string>;
+  onSuccess: () => Promise<void>;
+}) {
+  const [amount, setAmount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const afterBalance = account.balance - (Number(amount) || 0);
+
+  const handleSubmit = async () => {
+    const num = Number(amount);
+    if (!num || num <= 0) { toast.error("Enter a valid amount."); return; }
+    if (num > account.balance) {
+      toast.error(`Amount cannot exceed outstanding ₹${account.balance.toLocaleString("en-IN")}.`);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/credits/${account.farmerId?._id}/payment`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ amount: num, paymentMethod: "CASH", notes: "Payment received" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(`₹${num.toLocaleString("en-IN")} collected. Balance updated.`);
+        setAmount("");
+        await onSuccess();
+      } else {
+        toast.error(data.message || "Failed to record payment.");
+      }
+    } catch {
+      toast.error("Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
+      <div className="relative flex-1 min-w-[180px] max-w-xs">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">₹</span>
+        <Input
+          type="number"
+          min="1"
+          max={account.balance}
+          placeholder={`Max ₹${account.balance.toLocaleString("en-IN")}`}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="pl-7 bg-white border-green-300 focus:border-green-500"
+        />
+      </div>
+
+      {amount && Number(amount) > 0 && Number(amount) <= account.balance && (
+        <div className="text-sm text-muted-foreground whitespace-nowrap">
+          Balance after:{" "}
+          <span className={`font-bold ${afterBalance <= 0 ? "text-green-600" : "text-destructive"}`}>
+            ₹{Math.max(0, afterBalance).toLocaleString("en-IN")}
+          </span>
+          {afterBalance <= 0 && <span className="ml-1 text-green-600 font-medium">✓ Fully Cleared!</span>}
+        </div>
+      )}
+
+      <Button
+        onClick={handleSubmit}
+        disabled={submitting || !amount || Number(amount) <= 0}
+        className="bg-green-600 hover:bg-green-700 text-white whitespace-nowrap"
+      >
+        {submitting ? "Saving..." : "Collect Payment"}
+      </Button>
+    </div>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function CreditLedgerPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -22,12 +89,6 @@ export default function CreditLedgerPage() {
   const [totalOutstanding, setTotalOutstanding] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
-
-  // Payment Modal
-  const [paymentModal, setPaymentModal] = useState<{ open: boolean; account: any | null }>({ open: false, account: null });
-  const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentNotes, setPaymentNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
@@ -53,46 +114,6 @@ export default function CreditLedgerPage() {
   };
 
   useEffect(() => { fetchCredits(); }, []);
-
-  const handleReceivePayment = async () => {
-    const amount = Number(paymentAmount);
-    if (!amount || amount <= 0) {
-      toast.error("Please enter a valid payment amount.");
-      return;
-    }
-    if (amount > paymentModal.account?.balance) {
-      toast.error("Payment amount cannot exceed the outstanding balance.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const farmerId = paymentModal.account?.farmerId?._id;
-      const res = await fetch(`${API_BASE_URL}/credits/${farmerId}/payment`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify({
-          amount,
-          paymentMethod: "CASH",
-          notes: paymentNotes || `Payment received from ${paymentModal.account?.farmerId?.name}`,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        toast.success(`₹${amount.toLocaleString("en-IN")} payment recorded. Balance updated.`);
-        setPaymentModal({ open: false, account: null });
-        setPaymentAmount("");
-        setPaymentNotes("");
-        await fetchCredits(); // Refresh
-      } else {
-        toast.error(data.message || "Failed to record payment.");
-      }
-    } catch {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const filtered = accounts.filter((a: any) =>
     (a.farmerId?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
@@ -173,12 +194,13 @@ export default function CreditLedgerPage() {
         ) : (
           filtered.map((account: any) => (
             <Card key={account._id} className={`border ${account.balance > 0 ? "border-destructive/30" : "border-green-200"}`}>
-              {/* Farmer row header */}
-              <div className="flex items-center justify-between p-4">
-                <div
-                  className="flex items-center gap-3 cursor-pointer flex-1"
-                  onClick={() => setExpandedAccount(expandedAccount === account._id ? null : account._id)}
-                >
+
+              {/* ── Farmer header row ── */}
+              <div
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/10 transition-colors"
+                onClick={() => setExpandedAccount(expandedAccount === account._id ? null : account._id)}
+              >
+                <div className="flex items-center gap-3">
                   {expandedAccount === account._id
                     ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                     : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
@@ -187,35 +209,21 @@ export default function CreditLedgerPage() {
                     <p className="text-xs text-muted-foreground">{account.farmerId?.phone || account.farmerId?.village || ""}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className={`text-lg font-bold ${account.balance > 0 ? "text-destructive" : "text-success"}`}>
-                      ₹{(account.balance || 0).toLocaleString("en-IN")}
-                    </p>
-                    <Badge variant={account.balance > 0 ? "destructive" : "outline"} className="text-xs">
-                      {account.balance > 0 ? "Outstanding" : "Cleared"}
-                    </Badge>
-                  </div>
-                  {account.balance > 0 && (
-                    <Button
-                      size="sm"
-                      className="bg-success hover:bg-success/90 text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPaymentModal({ open: true, account });
-                        setPaymentAmount(account.balance.toString());
-                      }}
-                    >
-                      <IndianRupee className="h-3 w-3 mr-1" />
-                      Receive Payment
-                    </Button>
-                  )}
+                <div className="text-right">
+                  <p className={`text-lg font-bold ${account.balance > 0 ? "text-destructive" : "text-success"}`}>
+                    ₹{(account.balance || 0).toLocaleString("en-IN")}
+                  </p>
+                  <Badge variant={account.balance > 0 ? "destructive" : "outline"} className="text-xs">
+                    {account.balance > 0 ? "Outstanding" : "Cleared"}
+                  </Badge>
                 </div>
               </div>
 
-              {/* Expanded transaction history */}
+              {/* ── Expanded section ── */}
               {expandedAccount === account._id && (
                 <div className="border-t">
+
+                  {/* Transaction history table */}
                   {!account.transactions || account.transactions.length === 0 ? (
                     <p className="text-sm text-muted-foreground p-4">No transactions yet.</p>
                   ) : (
@@ -253,13 +261,15 @@ export default function CreditLedgerPage() {
                                 ₹{(tx.amount || 0).toLocaleString("en-IN")}
                               </td>
                               <td className="p-3 text-right font-semibold">
-                                <span className={tx.type === "CREDIT_ADDED" && tx.saleDetails?.outstanding > 0 ? "text-destructive" : "text-success"}>
-                                  {tx.saleDetails
-                                    ? `₹${tx.saleDetails.outstanding.toLocaleString("en-IN")}`
-                                    : tx.type === "PAYMENT_RECEIVED"
-                                      ? <span className="text-success">₹{(tx.amount || 0).toLocaleString("en-IN")} Paid</span>
-                                      : "—"}
-                                </span>
+                                {tx.type === "PAYMENT_RECEIVED" ? (
+                                  <span className="text-green-600">
+                                    ₹{(tx.amount || 0).toLocaleString("en-IN")} Paid
+                                  </span>
+                                ) : tx.saleDetails ? (
+                                  <span className={tx.saleDetails.outstanding > 0 ? "text-destructive" : "text-green-600"}>
+                                    ₹{tx.saleDetails.outstanding.toLocaleString("en-IN")}
+                                  </span>
+                                ) : "—"}
                               </td>
                               <td className="p-3 text-center">
                                 <Badge
@@ -284,78 +294,36 @@ export default function CreditLedgerPage() {
                       </table>
                     </div>
                   )}
+
+                  {/* ── Inline Collect Payment strip ── */}
+                  {account.balance > 0 && (
+                    <div className="border-t bg-green-50 px-4 py-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
+                          <IndianRupee className="h-4 w-4" />
+                          Collect Payment
+                        </p>
+                        <span className="text-xs text-muted-foreground">
+                          Outstanding:{" "}
+                          <span className="font-bold text-destructive">
+                            ₹{(account.balance || 0).toLocaleString("en-IN")}
+                          </span>
+                        </span>
+                      </div>
+                      <InlinePayment
+                        account={account}
+                        getHeaders={getHeaders}
+                        onSuccess={fetchCredits}
+                      />
+                    </div>
+                  )}
+
                 </div>
               )}
             </Card>
           ))
         )}
       </div>
-
-      {/* Receive Payment Modal */}
-      <Dialog open={paymentModal.open} onOpenChange={(open) => !open && setPaymentModal({ open: false, account: null })}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Receive Credit Payment</DialogTitle>
-            <DialogDescription>
-              Record payment from <strong>{paymentModal.account?.farmerId?.name}</strong>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="flex justify-between items-center bg-destructive/10 p-3 rounded-lg border border-destructive/20">
-              <span className="text-sm font-medium">Current Outstanding</span>
-              <span className="text-xl font-bold text-destructive">
-                ₹{(paymentModal.account?.balance || 0).toLocaleString("en-IN")}
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="paymentAmt">Amount Being Paid (₹)</Label>
-              <Input
-                id="paymentAmt"
-                type="number"
-                min="1"
-                max={paymentModal.account?.balance}
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-                placeholder="Enter amount"
-              />
-            </div>
-
-            {paymentAmount && Number(paymentAmount) > 0 && Number(paymentAmount) <= (paymentModal.account?.balance || 0) && (
-              <div className="flex justify-between items-center bg-green-50 p-3 rounded-lg border border-green-200">
-                <span className="text-sm font-medium text-green-700">Balance After Payment</span>
-                <span className="text-lg font-bold text-green-700">
-                  ₹{((paymentModal.account?.balance || 0) - Number(paymentAmount)).toLocaleString("en-IN")}
-                </span>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="paymentNotes">Notes (Optional)</Label>
-              <Input
-                id="paymentNotes"
-                value={paymentNotes}
-                onChange={(e) => setPaymentNotes(e.target.value)}
-                placeholder="e.g. Cash payment received"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" disabled={isSubmitting} onClick={() => setPaymentModal({ open: false, account: null })}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleReceivePayment}
-              disabled={isSubmitting || !paymentAmount || Number(paymentAmount) <= 0}
-              className="bg-success hover:bg-success/90 text-white"
-            >
-              {isSubmitting ? "Processing..." : "Record Payment"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
