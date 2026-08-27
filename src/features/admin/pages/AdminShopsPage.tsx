@@ -10,9 +10,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, RefreshCw, Store } from "lucide-react";
+import { Search, RefreshCw, Store, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL } from "@/config/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface ShopData {
   _id: string;
@@ -40,6 +48,9 @@ export default function AdminShopsPage() {
   const [shops, setShops] = useState<ShopData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [shopToDelete, setShopToDelete] = useState<ShopData | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchShops = async () => {
     setIsLoading(true);
@@ -68,6 +79,34 @@ export default function AdminShopsPage() {
   useEffect(() => {
     fetchShops();
   }, []);
+
+  const handleDeleteShop = async () => {
+    if (!shopToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/admin/shops/${shopToDelete._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success("Shop deleted successfully");
+        fetchShops(); // Refresh list
+      } else {
+        toast.error(data.message || "Failed to delete shop");
+      }
+    } catch (err) {
+      toast.error("Cannot connect to server to delete shop.");
+    } finally {
+      setIsDeleting(false);
+      setShopToDelete(null);
+    }
+  };
 
   const filteredShops = shops.filter(
     (shop) =>
@@ -140,12 +179,13 @@ export default function AdminShopsPage() {
                 <TableHead>State</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Registered On</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredShops.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     {searchTerm ? "No shops match your search." : "No shops registered yet."}
                   </TableCell>
                 </TableRow>
@@ -165,6 +205,16 @@ export default function AdminShopsPage() {
                         year: "numeric",
                       })}
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setShopToDelete(shop)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -176,6 +226,27 @@ export default function AdminShopsPage() {
           <div>Showing {filteredShops.length} of {shops.length} shops</div>
         </div>
       </div>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!shopToDelete} onOpenChange={(open) => !open && setShopToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Shop</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-foreground">{shopToDelete?.name}</span>? 
+              This action cannot be undone. All users and data associated with this shop will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShopToDelete(null)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteShop} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete Shop"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
