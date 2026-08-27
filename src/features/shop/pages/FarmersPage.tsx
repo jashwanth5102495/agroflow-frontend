@@ -58,6 +58,30 @@ export default function FarmersPage() {
     return headers;
   };
 
+  // Farmer Details State
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedFarmer, setSelectedFarmer] = useState<Farmer | null>(null);
+  const [farmerSales, setFarmerSales] = useState<any[]>([]);
+  const [isLoadingSales, setIsLoadingSales] = useState(false);
+
+  const handleViewDetails = async (farmer: Farmer) => {
+    setSelectedFarmer(farmer);
+    setIsDetailsOpen(true);
+    setIsLoadingSales(true);
+    setFarmerSales([]);
+    try {
+      const res = await fetch(`${API_BASE_URL}/sales?farmerId=${farmer._id}`, { headers: getHeaders() });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFarmerSales(data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch farmer sales:", err);
+    } finally {
+      setIsLoadingSales(false);
+    }
+  };
+
   const fetchFarmers = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/farmers`, { headers: getHeaders() });
@@ -208,7 +232,11 @@ export default function FarmersPage() {
                 </TableRow>
               ) : (
                 filteredFarmers.map((farmer) => (
-                  <TableRow key={farmer._id}>
+                  <TableRow 
+                    key={farmer._id} 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleViewDetails(farmer)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
@@ -237,6 +265,79 @@ export default function FarmersPage() {
           <div>Showing {filteredFarmers.length} of {farmers.length} farmers</div>
         </div>
       </div>
+
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Farmer Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedFarmer && (
+            <div className="space-y-6 pt-4">
+              <div className="flex items-center gap-4 bg-muted/20 p-4 rounded-lg border">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${selectedFarmer.name}`} />
+                  <AvatarFallback className="text-xl">{getInitials(selectedFarmer.name)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-xl font-bold">{selectedFarmer.name}</h3>
+                  <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                    <span className="flex items-center gap-1"><Phone className="h-3 w-3"/> {selectedFarmer.phone}</span>
+                    <span>{selectedFarmer.village ? `Village: ${selectedFarmer.village}` : ""}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-bold border-b pb-2">Purchase History</h4>
+                
+                {isLoadingSales ? (
+                  <div className="text-center py-4 text-muted-foreground">Loading sales...</div>
+                ) : farmerSales.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground bg-muted/10 rounded border border-dashed">
+                    No purchase history found for this farmer.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {farmerSales.map((sale: any) => (
+                      <div key={sale._id} className="border rounded-lg p-3 bg-card shadow-sm text-sm">
+                        <div className="flex justify-between items-start mb-2 border-b pb-2">
+                          <div>
+                            <span className="font-semibold text-primary">{sale.invoiceNumber}</span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {new Date(sale.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="font-bold text-right">
+                            Total: ₹{sale.total}
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-end mt-2">
+                          <div className="text-xs text-muted-foreground">
+                            Payment: {sale.paymentMethod}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-muted-foreground">Paid: ₹{sale.amountPaid}</div>
+                            {sale.amountDue > 0 && (
+                              <div className="text-xs font-semibold text-destructive mt-1">
+                                Credit Added: ₹{sale.amountDue}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button onClick={() => setIsDetailsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

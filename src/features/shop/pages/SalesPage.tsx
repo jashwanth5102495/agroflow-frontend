@@ -12,14 +12,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Trash2, ReceiptText } from "lucide-react";
+import { Search, Plus, Trash2, ReceiptText, Info } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Product {
   _id: string;
   name: string;
   sellingPrice: number;
   category?: string;
+  description?: string;
 }
 
 interface CartItem {
@@ -36,6 +46,16 @@ export default function SalesPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedFarmer, setSelectedFarmer] = useState("walkin");
+  
+  // Info Modal
+  const [infoProduct, setInfoProduct] = useState<Product | null>(null);
+
+  // Checkout Modal
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [downPayment, setDownPayment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
@@ -94,6 +114,65 @@ export default function SalesPage() {
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleOpenCheckout = () => {
+    if (cart.length === 0) return;
+    
+    // Default down payment to full total for Cash
+    setDownPayment(grandTotal.toString());
+    setPaymentMethod("CASH");
+    setIsCheckoutOpen(true);
+  };
+
+  const handleCheckout = async () => {
+    if (paymentMethod !== "CASH" && selectedFarmer === "walkin") {
+      toast.error("Credit sales require a registered farmer.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      let finalPaymentMethod = paymentMethod;
+      const amtPaid = Number(downPayment) || 0;
+
+      if (paymentMethod === "CREDIT" && amtPaid > 0 && amtPaid < grandTotal) {
+        finalPaymentMethod = "PARTIAL";
+      } else if (paymentMethod === "CREDIT" && amtPaid >= grandTotal) {
+        finalPaymentMethod = "CASH";
+      }
+
+      const payload = {
+        farmerId: selectedFarmer === "walkin" ? farmers[0]?._id : selectedFarmer, 
+        invoiceNumber: `INV-${Date.now()}`,
+        paymentMethod: finalPaymentMethod,
+        amountPaid: amtPaid,
+        items: cart.map(item => ({
+          productId: item.productId,
+          quantity: item.qty,
+          discount: 0
+        }))
+      };
+
+      const res = await fetch(`${API_BASE_URL}/sales`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success("Invoice generated successfully!");
+        setCart([]);
+        setIsCheckoutOpen(false);
+      } else {
+        throw new Error(data.message || "Failed to generate invoice");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -112,7 +191,6 @@ export default function SalesPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-        {/* Left Side: Product Selection */}
         <div className="lg:col-span-2 space-y-4 flex flex-col">
           <Card className="flex-1 flex flex-col">
             <CardHeader className="pb-3 border-b">
@@ -138,11 +216,24 @@ export default function SalesPage() {
                 filteredProducts.map((product) => (
                   <div
                     key={product._id}
-                    className="border rounded-lg p-3 hover:border-primary hover:shadow-sm cursor-pointer transition-all bg-card flex flex-col justify-between h-28"
+                    className="border rounded-lg p-3 hover:border-primary hover:shadow-sm cursor-pointer transition-all bg-card flex flex-col justify-between h-28 relative group"
                     onClick={() => addToCart(product)}
                   >
                     <div>
-                      <h4 className="font-medium text-sm line-clamp-2">{product.name}</h4>
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-medium text-sm line-clamp-2 pr-6">{product.name}</h4>
+                        {product.description && (
+                          <div 
+                            className="absolute top-2 right-2 text-muted-foreground hover:text-primary z-10"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInfoProduct(product);
+                            }}
+                          >
+                            <Info className="h-4 w-4" />
+                          </div>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-1">{product.category || ""}</p>
                     </div>
                     <div className="flex justify-between items-center mt-2">
@@ -158,14 +249,13 @@ export default function SalesPage() {
           </Card>
         </div>
 
-        {/* Right Side: Cart & Checkout */}
         <div className="lg:col-span-1">
           <Card className="h-full flex flex-col">
             <CardHeader className="pb-3 border-b bg-muted/20">
               <CardTitle>Current Sale</CardTitle>
               <div className="mt-4 space-y-2">
                 <Label>Select Farmer</Label>
-                <Select defaultValue="walkin">
+                <Select value={selectedFarmer} onValueChange={setSelectedFarmer}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select farmer" />
                   </SelectTrigger>
@@ -222,13 +312,112 @@ export default function SalesPage() {
                   <span className="text-primary">₹{grandTotal.toLocaleString("en-IN")}</span>
                 </div>
               </div>
-              <Button className="w-full gradient-btn shadow-md py-6 text-lg mt-2" disabled={cart.length === 0}>
+              <Button className="w-full gradient-btn shadow-md py-6 text-lg mt-2" disabled={cart.length === 0} onClick={handleOpenCheckout}>
                 <ReceiptText className="mr-2 h-5 w-5" /> Generate Invoice
               </Button>
             </CardFooter>
           </Card>
         </div>
       </div>
+
+      <Dialog open={!!infoProduct} onOpenChange={() => setInfoProduct(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>{infoProduct?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{infoProduct?.description}</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setInfoProduct(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Complete Sale</DialogTitle>
+            <DialogDescription>
+              Review payment details before generating invoice.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="flex justify-between items-center text-lg font-bold bg-muted/30 p-3 rounded-lg border">
+              <span>Grand Total</span>
+              <span className="text-primary">₹{grandTotal.toLocaleString("en-IN")}</span>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Payment Method</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  type="button" 
+                  variant={paymentMethod === "CASH" ? "default" : "outline"} 
+                  onClick={() => { setPaymentMethod("CASH"); setDownPayment(grandTotal.toString()); }}
+                >
+                  Cash
+                </Button>
+                <Button 
+                  type="button" 
+                  variant={paymentMethod === "CREDIT" ? "default" : "outline"}
+                  onClick={() => { setPaymentMethod("CREDIT"); setDownPayment("0"); }}
+                >
+                  Credit
+                </Button>
+              </div>
+            </div>
+
+            {paymentMethod === "CREDIT" && (
+              <div className="space-y-4 pt-2 border-t">
+                {selectedFarmer === "walkin" && (
+                  <div className="text-sm text-destructive font-medium bg-destructive/10 p-2 rounded">
+                    Warning: Walk-in customers cannot take credit. Please select a registered farmer.
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label>Down Payment (Amount Paid)</Label>
+                  <Input 
+                    type="number" 
+                    value={downPayment} 
+                    onChange={(e) => setDownPayment(e.target.value)} 
+                    max={grandTotal}
+                    min={0}
+                  />
+                </div>
+                
+                <div className="flex justify-between items-center text-sm p-3 bg-warning/10 text-warning-foreground rounded-lg border border-warning/20">
+                  <span className="font-medium">Credit Amount to Ledger:</span>
+                  <span className="font-bold">
+                    ₹{Math.max(0, grandTotal - (Number(downPayment) || 0)).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {paymentMethod === "CASH" && (
+              <div className="space-y-2 pt-2 border-t">
+                <Label>Amount Collected</Label>
+                <Input 
+                  type="number" 
+                  value={downPayment} 
+                  onChange={(e) => setDownPayment(e.target.value)} 
+                />
+              </div>
+            )}
+
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCheckoutOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleCheckout} disabled={isSubmitting || (paymentMethod === "CREDIT" && selectedFarmer === "walkin")}>
+              {isSubmitting ? "Processing..." : "Confirm & Generate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Download, Upload, Plus } from "lucide-react";
+import { Search, Filter, Download, Upload, Plus, Trash2 } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 import { toast } from "sonner";
 import {
@@ -52,7 +52,8 @@ export default function InventoryPage() {
     purchasePrice: "",
     sellingPrice: "",
     minimumStock: "10",
-    initialStock: "0"
+    initialStock: "0",
+    description: ""
   });
 
   const [restockValues, setRestockValues] = useState<Record<string, string>>({});
@@ -102,6 +103,26 @@ export default function InventoryPage() {
       toast.error(err.message || "Failed to restock");
     } finally {
       setRestockingId(null);
+    }
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/products/${productId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success("Product deleted successfully");
+        fetchInventory();
+      } else {
+        const data = await res.json();
+        toast.error(data.message || "Failed to delete product");
+      }
+    } catch (err: any) {
+      toast.error("Failed to delete product");
     }
   };
 
@@ -169,17 +190,22 @@ export default function InventoryPage() {
       };
 
       // 1. Create Product
+      const productPayload: any = {
+        name: newProduct.name,
+        category: newProduct.category,
+        unit: newProduct.unit,
+        purchasePrice: Number(newProduct.purchasePrice),
+        sellingPrice: Number(newProduct.sellingPrice),
+        minimumStock: Number(newProduct.minimumStock)
+      };
+      if (newProduct.description) {
+        productPayload.description = newProduct.description;
+      }
+
       const productRes = await fetch(`${API_BASE_URL}/products`, {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          name: newProduct.name,
-          category: newProduct.category,
-          unit: newProduct.unit,
-          purchasePrice: Number(newProduct.purchasePrice),
-          sellingPrice: Number(newProduct.sellingPrice),
-          minimumStock: Number(newProduct.minimumStock)
-        })
+        body: JSON.stringify(productPayload)
       });
 
       const productData = await productRes.json();
@@ -215,7 +241,8 @@ export default function InventoryPage() {
         purchasePrice: "",
         sellingPrice: "",
         minimumStock: "10",
-        initialStock: "0"
+        initialStock: "0",
+        description: ""
       });
       fetchInventory();
     } catch (err: any) {
@@ -320,6 +347,14 @@ export default function InventoryPage() {
                           >
                             {isRestocking ? "..." : "Save"}
                           </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteProduct(item.productId._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -411,6 +446,15 @@ export default function InventoryPage() {
                 className="col-span-3"
                 value={newProduct.initialStock}
                 onChange={(e) => setNewProduct({ ...newProduct, initialStock: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">Description</Label>
+              <Input
+                id="description"
+                className="col-span-3"
+                value={newProduct.description}
+                onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
               />
             </div>
           </div>
