@@ -30,6 +30,7 @@ interface Product {
   sellingPrice: number;
   category?: string;
   description?: string;
+  stock?: number;
 }
 
 interface CartItem {
@@ -237,8 +238,16 @@ export default function SalesPage() {
                       <p className="text-xs text-muted-foreground mt-1">{product.category || ""}</p>
                     </div>
                     <div className="flex justify-between items-center mt-2">
-                      <span className="font-semibold text-primary">₹{product.sellingPrice}</span>
-                      <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full bg-primary/10 hover:bg-primary hover:text-white">
+                      <div>
+                        <span className="font-semibold text-primary">₹{product.sellingPrice}</span>
+                        <div className="text-xs text-muted-foreground mt-0.5">Stock: {product.stock || 0}</div>
+                      </div>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-6 w-6 rounded-full bg-primary/10 hover:bg-primary hover:text-white"
+                        disabled={(product.stock || 0) <= 0}
+                      >
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
