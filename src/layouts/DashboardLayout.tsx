@@ -150,9 +150,10 @@ export default function DashboardLayout() {
     checkSub();
   }, [location.pathname]);
 
-  const isSubLocked = currentPath.startsWith("/shop") && 
+  // Temporarily disabled for testing phase
+  const isSubLocked = false; /* currentPath.startsWith("/shop") && 
     currentPath !== "/shop/billing" && 
-    subscriptionStatus === "PENDING_PAYMENT";
+    subscriptionStatus === "PENDING_PAYMENT"; */
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
