@@ -1,12 +1,44 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { toast } from "sonner";
+import { API_BASE_URL } from "@/config/api";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function ReportsPage() {
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const getHeaders = () => {
+    const token = localStorage.getItem("token");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  };
+
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/dashboard/analytics`, { headers: getHeaders() });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setAnalytics(data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch analytics:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAnalytics();
+  }, []);
+
   const handleGenerateReport = (reportName: string = "General Report") => {
     toast.info(`${reportName} generation will be available once sales data is recorded.`);
   };
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   return (
     <div className="space-y-6">
@@ -29,10 +61,27 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle>Sales vs Credit (Last 6 Months)</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
-            <BarChart3 className="h-12 w-12 mb-4 opacity-20" />
-            <p className="font-medium">No sales data available yet</p>
-            <p className="text-sm">Charts will appear once you start recording sales.</p>
+          <CardContent className="h-[300px]">
+            {isLoading ? (
+              <div className="flex h-full items-center justify-center text-muted-foreground animate-pulse">Loading...</div>
+            ) : analytics?.salesVsCredit?.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics.salesVsCredit}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="sales" fill="#8884d8" name="Total Sales" />
+                  <Bar dataKey="credit" fill="#82ca9d" name="Credit Added" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <BarChart3 className="h-12 w-12 mb-4 opacity-20" />
+                <p className="font-medium">No sales data available yet</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -40,10 +89,34 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle>Sales by Category</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
-            <PieChartIcon className="h-12 w-12 mb-4 opacity-20" />
-            <p className="font-medium">No category data available yet</p>
-            <p className="text-sm">Charts will appear once you start recording sales.</p>
+          <CardContent className="h-[300px]">
+            {isLoading ? (
+              <div className="flex h-full items-center justify-center text-muted-foreground animate-pulse">Loading...</div>
+            ) : analytics?.salesByCategory?.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={analytics.salesByCategory}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  >
+                    {analytics.salesByCategory.map((_: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <PieChartIcon className="h-12 w-12 mb-4 opacity-20" />
+                <p className="font-medium">No category data available yet</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

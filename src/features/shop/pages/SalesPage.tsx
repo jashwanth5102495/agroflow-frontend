@@ -54,9 +54,11 @@ export default function SalesPage() {
 
   // Checkout Modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState("CASH");
-  const [downPayment, setDownPayment] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("CASH");
+  const [downPayment, setDownPayment] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
@@ -129,8 +131,13 @@ export default function SalesPage() {
   };
 
   const handleCheckout = async () => {
-    if (paymentMethod !== "CASH" && selectedFarmer === "walkin") {
-      toast.error("Credit sales require a registered farmer.");
+    if (cart.length === 0) return;
+    if (selectedFarmer === "walkin" && paymentMethod === "CREDIT") {
+      toast.error("Walk-in customers cannot be given credit. Please register the farmer first.");
+      return;
+    }
+    if (selectedFarmer === "walkin" && !customerName.trim()) {
+      toast.error("Please enter a customer name for walk-in billing.");
       return;
     }
 
@@ -146,7 +153,9 @@ export default function SalesPage() {
       }
 
       const payload = {
-        farmerId: selectedFarmer === "walkin" ? farmers[0]?._id : selectedFarmer, 
+        farmerId: selectedFarmer === "walkin" ? undefined : selectedFarmer, 
+        customerName: selectedFarmer === "walkin" ? customerName : undefined,
+        customerPhone: selectedFarmer === "walkin" ? customerPhone : undefined,
         invoiceNumber: `INV-${Date.now()}`,
         paymentMethod: finalPaymentMethod,
         amountPaid: amtPaid,
@@ -356,6 +365,30 @@ export default function SalesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
+            {selectedFarmer === "walkin" && (
+              <div className="space-y-3 bg-muted/20 p-3 rounded-lg border">
+                <h4 className="font-semibold text-sm">Customer Details</h4>
+                <div className="grid gap-2">
+                  <Label htmlFor="customerName">Name *</Label>
+                  <Input 
+                    id="customerName" 
+                    placeholder="Enter customer name" 
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="customerPhone">Phone (Optional)</Label>
+                  <Input 
+                    id="customerPhone" 
+                    placeholder="Enter phone number" 
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-between items-center text-lg font-bold bg-muted/30 p-3 rounded-lg border">
               <span>Grand Total</span>
               <span className="text-primary">₹{grandTotal.toLocaleString("en-IN")}</span>
