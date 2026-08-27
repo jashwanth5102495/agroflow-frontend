@@ -55,6 +55,56 @@ export default function InventoryPage() {
     initialStock: "0"
   });
 
+  const [restockValues, setRestockValues] = useState<Record<string, string>>({});
+  const [restockingId, setRestockingId] = useState<string | null>(null);
+
+  const handleRestock = async (productId: string, itemId: string) => {
+    const qty = Number(restockValues[itemId]);
+    if (!qty || isNaN(qty) || qty <= 0) {
+      toast.error("Please enter a valid positive quantity");
+      return;
+    }
+
+    setRestockingId(itemId);
+    try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      };
+
+      const res = await fetch(`${API_BASE_URL}/inventory/adjust`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          productId,
+          quantityChange: qty,
+          type: "ADJUSTMENT",
+          reason: "Manual Restock"
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to restock");
+      }
+
+      toast.success("Stock updated successfully");
+      
+      // Clear input
+      const newValues = { ...restockValues };
+      delete newValues[itemId];
+      setRestockValues(newValues);
+      
+      // Refresh inventory
+      fetchInventory();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to restock");
+    } finally {
+      setRestockingId(null);
+    }
+  };
+
   const fetchInventory = async () => {
     setIsLoading(true);
     try {
@@ -230,18 +280,21 @@ export default function InventoryPage() {
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Price</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Restock</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredInventory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     {searchTerm ? "No products match your search." : "No products in inventory. Add products to get started."}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredInventory.map((item) => {
                   const status = getStockStatus(item.quantity, item.productId?.minimumStock || 0);
+                  const isRestocking = restockingId === item._id;
+                  
                   return (
                     <TableRow key={item._id}>
                       <TableCell className="font-medium">{item.productId?.name || "Unknown"}</TableCell>
@@ -249,6 +302,26 @@ export default function InventoryPage() {
                       <TableCell className="text-right font-medium">{item.quantity}</TableCell>
                       <TableCell className="text-right">₹{item.productId?.sellingPrice || 0}</TableCell>
                       <TableCell>{getStatusBadge(status)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Input
+                            type="number"
+                            className="w-20 h-8"
+                            placeholder="Qty"
+                            value={restockValues[item._id] || ""}
+                            onChange={(e) => setRestockValues({ ...restockValues, [item._id]: e.target.value })}
+                          />
+                          <Button 
+                            size="sm" 
+                            variant="secondary"
+                            className="h-8 px-2"
+                            onClick={() => handleRestock(item.productId._id, item._id)}
+                            disabled={isRestocking || !restockValues[item._id]}
+                          >
+                            {isRestocking ? "..." : "Save"}
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })
