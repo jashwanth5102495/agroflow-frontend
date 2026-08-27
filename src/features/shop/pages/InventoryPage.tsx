@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -12,6 +13,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Download, Upload, Plus } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface InventoryItem {
   _id: string;
@@ -32,24 +42,39 @@ export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchInventory = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
+  // Add Product Modal State
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    category: "",
+    unit: "kg",
+    purchasePrice: "",
+    sellingPrice: "",
+    minimumStock: "10",
+    initialStock: "0"
+  });
 
-        const response = await fetch(`${API_BASE_URL}/inventory`, { headers });
-        const data = await response.json();
-        if (response.ok && data.success) {
-          setInventory(data.data || []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch inventory:", err);
-      } finally {
-        setIsLoading(false);
+  const fetchInventory = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch(`${API_BASE_URL}/inventory`, { headers });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setInventory(data.data || []);
       }
-    };
+    } catch (err) {
+      console.error("Failed to fetch inventory:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchInventory();
   }, []);
 
@@ -79,6 +104,77 @@ export default function InventoryPage() {
     item.productId?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleAddProduct = async () => {
+    if (!newProduct.name || !newProduct.category || !newProduct.purchasePrice || !newProduct.sellingPrice) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      };
+
+      // 1. Create Product
+      const productRes = await fetch(`${API_BASE_URL}/products`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name: newProduct.name,
+          category: newProduct.category,
+          unit: newProduct.unit,
+          purchasePrice: Number(newProduct.purchasePrice),
+          sellingPrice: Number(newProduct.sellingPrice),
+          minimumStock: Number(newProduct.minimumStock)
+        })
+      });
+
+      const productData = await productRes.json();
+      if (!productRes.ok || !productData.success) {
+        throw new Error(productData.message || "Failed to create product");
+      }
+
+      const productId = productData.data._id;
+
+      // 2. Add Initial Inventory (even if 0, so it shows up in the list)
+      const invRes = await fetch(`${API_BASE_URL}/inventory/adjust`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          productId,
+          quantity: Number(newProduct.initialStock),
+          type: "ADJUSTMENT",
+          reason: "Initial Stock"
+        })
+      });
+
+      const invData = await invRes.json();
+      if (!invRes.ok || !invData.success) {
+        throw new Error(invData.message || "Failed to add initial stock");
+      }
+
+      toast.success("Product added successfully!");
+      setIsAddModalOpen(false);
+      setNewProduct({
+        name: "",
+        category: "",
+        unit: "kg",
+        purchasePrice: "",
+        sellingPrice: "",
+        minimumStock: "10",
+        initialStock: "0"
+      });
+      fetchInventory();
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -103,7 +199,7 @@ export default function InventoryPage() {
           <Button variant="outline" size="sm" className="hidden sm:flex">
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
-          <Button size="sm" className="gradient-btn shadow-md">
+          <Button size="sm" className="gradient-btn shadow-md" onClick={() => setIsAddModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
         </div>
@@ -165,6 +261,96 @@ export default function InventoryPage() {
           <div>Showing {filteredInventory.length} of {inventory.length} entries</div>
         </div>
       </div>
+
+      {/* Add Product Dialog */}
+      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Product</DialogTitle>
+            <DialogDescription>
+              Add a new product to your inventory. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">Name *</Label>
+              <Input
+                id="name"
+                className="col-span-3"
+                value={newProduct.name}
+                onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="category" className="text-right">Category *</Label>
+              <Input
+                id="category"
+                className="col-span-3"
+                value={newProduct.category}
+                onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="unit" className="text-right">Unit *</Label>
+              <Input
+                id="unit"
+                className="col-span-3"
+                placeholder="kg, ltr, piece"
+                value={newProduct.unit}
+                onChange={(e) => setNewProduct({ ...newProduct, unit: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="purchase" className="text-right">Buy Price *</Label>
+              <Input
+                id="purchase"
+                type="number"
+                className="col-span-3"
+                value={newProduct.purchasePrice}
+                onChange={(e) => setNewProduct({ ...newProduct, purchasePrice: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="selling" className="text-right">Sell Price *</Label>
+              <Input
+                id="selling"
+                type="number"
+                className="col-span-3"
+                value={newProduct.sellingPrice}
+                onChange={(e) => setNewProduct({ ...newProduct, sellingPrice: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="minstock" className="text-right">Min Stock</Label>
+              <Input
+                id="minstock"
+                type="number"
+                className="col-span-3"
+                value={newProduct.minimumStock}
+                onChange={(e) => setNewProduct({ ...newProduct, minimumStock: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="stock" className="text-right">Initial Stock</Label>
+              <Input
+                id="stock"
+                type="number"
+                className="col-span-3"
+                value={newProduct.initialStock}
+                onChange={(e) => setNewProduct({ ...newProduct, initialStock: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddProduct} disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
