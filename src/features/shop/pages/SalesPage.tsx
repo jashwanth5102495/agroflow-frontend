@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Trash2, ReceiptText, Info } from "lucide-react";
+import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 import { toast } from "sonner";
 import {
@@ -60,6 +60,10 @@ export default function SalesPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
 
+  // Cashier Mode
+  const [isCashierMode, setIsCashierMode] = useState(false);
+  const [cashierUrl, setCashierUrl] = useState("");
+
   const getHeaders = () => {
     const token = localStorage.getItem("token");
     const headers: Record<string, string> = {};
@@ -94,6 +98,16 @@ export default function SalesPage() {
       }
     };
     fetchData();
+
+    // Init Cashier Mode state
+    const shopData = localStorage.getItem("shop");
+    if (shopData) {
+      const shop = JSON.parse(shopData);
+      if (shop.isCashierEnabled && shop.cashierToken) {
+        setIsCashierMode(true);
+        setCashierUrl(`${window.location.origin}/cashier/auth/${shop._id}/${shop.cashierToken}`);
+      }
+    }
   }, []);
 
   const addToCart = (product: Product) => {
@@ -195,13 +209,87 @@ export default function SalesPage() {
     );
   }
 
+  const handleToggleCashierMode = async () => {
+    try {
+      const newState = !isCashierMode;
+      const res = await fetch(`${API_BASE_URL}/cashier/toggle`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ isEnabled: newState }),
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setIsCashierMode(newState);
+        
+        const shopData = localStorage.getItem("shop");
+        if (shopData) {
+          const shop = JSON.parse(shopData);
+          shop.isCashierEnabled = newState;
+          shop.cashierToken = data.data.cashierToken;
+          localStorage.setItem("shop", JSON.stringify(shop));
+          
+          if (newState) {
+            setCashierUrl(`${window.location.origin}/cashier/auth/${shop._id}/${data.data.cashierToken}`);
+            toast.success("Cashier Mode enabled");
+          } else {
+            setCashierUrl("");
+            toast.success("Cashier Mode disabled");
+          }
+        }
+      } else {
+        toast.error(data.message || "Failed to toggle Cashier Mode");
+      }
+    } catch (err) {
+      toast.error("Failed to connect to server");
+    }
+  };
+
+  const copyCashierUrl = () => {
+    navigator.clipboard.writeText(cashierUrl);
+    toast.success("Cashier link copied to clipboard!");
+  };
+
+  // Check if current user is cashier
+  const userData = localStorage.getItem("user");
+  const isCashier = userData ? JSON.parse(userData).role === "CASHIER" : false;
+
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Point of Sale</h2>
-        <p className="text-muted-foreground">
-          Create new sales invoices and process payments.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Point of Sale</h2>
+          <p className="text-muted-foreground">
+            Create new sales invoices and process payments.
+          </p>
+        </div>
+        
+        {!isCashier && (
+          <div className="flex flex-col gap-2 p-3 bg-muted/20 border rounded-lg w-full sm:w-auto">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Cashier Desk Link</span>
+              </div>
+              <Button 
+                variant={isCashierMode ? "default" : "outline"}
+                size="sm"
+                onClick={handleToggleCashierMode}
+                className={isCashierMode ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+              >
+                {isCashierMode ? "Enabled" : "Enable"}
+              </Button>
+            </div>
+            {isCashierMode && cashierUrl && (
+              <div className="flex items-center gap-2">
+                <Input value={cashierUrl} readOnly className="h-8 text-xs w-full sm:w-64" />
+                <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" onClick={copyCashierUrl}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">

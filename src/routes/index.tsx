@@ -19,6 +19,8 @@ import WhatsAppGatewayPage from "@/features/admin/pages/WhatsAppGatewayPage";
 import SettingsPage from "@/features/shop/pages/SettingsPage";
 import SoftwareBillingPage from "@/features/shop/pages/SoftwareBillingPage";
 import NotificationPage from "@/features/shop/pages/NotificationPage";
+import CashierLayout from "@/layouts/CashierLayout";
+import CashierAuthPage from "@/features/auth/pages/CashierAuthPage";
 
 // Secure Admin Route Guard
 function AdminGuard() {
@@ -136,6 +138,32 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <SettingsPage />,
+      },
+    ],
+  },
+  {
+    path: "/cashier/auth/:shopId/:token",
+    element: <CashierAuthPage />,
+  },
+  {
+    path: "/cashier",
+    element: <CashierLayout />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/cashier/sales" replace />,
+      },
+      {
+        path: "sales",
+        element: <SalesPage />,
+      },
+      {
+        path: "farmers",
+        element: <FarmersPage />,
+      },
+      {
+        path: "inventory",
+        element: <InventoryPage />,
       },
     ],
   },
