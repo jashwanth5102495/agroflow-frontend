@@ -144,6 +144,16 @@ export default function SalesPage() {
     // Default down payment to full total for Cash
     setDownPayment(grandTotal.toString());
     setPaymentMethod("CASH");
+    if (selectedFarmer !== "walkin") {
+      const f = farmers.find(f => f._id === selectedFarmer);
+      if (f) {
+        setCustomerName(f.name);
+        setCustomerPhone(f.phone || "");
+      }
+    } else {
+      setCustomerName("");
+      setCustomerPhone("");
+    }
     setIsCheckoutOpen(true);
   };
 
@@ -469,29 +479,61 @@ export default function SalesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
-            {selectedFarmer === "walkin" && (
-              <div className="space-y-3 bg-muted/20 p-3 rounded-lg border">
-                <h4 className="font-semibold text-sm">Customer Details</h4>
-                <div className="grid gap-2">
-                  <Label htmlFor="customerName">Name *</Label>
-                  <Input 
-                    id="customerName" 
-                    placeholder="Enter customer name" 
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="customerPhone">Phone (Optional)</Label>
-                  <Input 
-                    id="customerPhone" 
-                    placeholder="Enter phone number" 
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                  />
-                </div>
+            <div className="space-y-3 bg-muted/20 p-3 rounded-lg border">
+              <h4 className="font-semibold text-sm flex items-center justify-between">
+                Customer Details
+                {selectedFarmer !== "walkin" && (
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded font-medium">Registered Farmer</span>
+                )}
+              </h4>
+              <div className="grid gap-2 relative">
+                <Label htmlFor="customerName">Name *</Label>
+                <Input 
+                  id="customerName" 
+                  autoComplete="off"
+                  placeholder="Enter name to search farmers or add new" 
+                  value={customerName}
+                  onChange={(e) => {
+                    setCustomerName(e.target.value);
+                    if (selectedFarmer !== "walkin") {
+                      setSelectedFarmer("walkin");
+                    }
+                  }}
+                />
+                {customerName.length > 0 && selectedFarmer === "walkin" && (
+                  <div className="absolute top-[100%] left-0 w-full z-50 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+                    {farmers
+                      .filter(f => f.name.toLowerCase().includes(customerName.toLowerCase()) || (f.phone && f.phone.includes(customerName)))
+                      .map(f => (
+                        <div 
+                          key={f._id}
+                          className="px-3 py-2 cursor-pointer hover:bg-muted text-sm border-b last:border-0"
+                          onClick={() => {
+                            setCustomerName(f.name);
+                            setCustomerPhone(f.phone || "");
+                            setSelectedFarmer(f._id);
+                          }}
+                        >
+                          <div className="font-medium">{f.name}</div>
+                          {f.phone && <div className="text-xs text-muted-foreground">{f.phone}</div>}
+                        </div>
+                      ))}
+                    {farmers.filter(f => f.name.toLowerCase().includes(customerName.toLowerCase()) || (f.phone && f.phone.includes(customerName))).length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground italic">No registered farmers found. Will bill as walk-in.</div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
+              <div className="grid gap-2">
+                <Label htmlFor="customerPhone">Phone (Optional)</Label>
+                <Input 
+                  id="customerPhone" 
+                  placeholder="Enter phone number" 
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                />
+              </div>
+            </div>
 
             <div className="flex justify-between items-center text-lg font-bold bg-muted/30 p-3 rounded-lg border">
               <span>Grand Total</span>
