@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
@@ -63,6 +64,11 @@ export default function SalesPage() {
   // Receipt Modal
   const [completedSale, setCompletedSale] = useState<any>(null);
 
+  // Sales History
+  const [salesHistory, setSalesHistory] = useState<any[]>([]);
+  const [historySearchTerm, setHistorySearchTerm] = useState("");
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+
   // Cashier Mode
   const [isCashierMode, setIsCashierMode] = useState(false);
   const [cashierUrl, setCashierUrl] = useState("");
@@ -77,12 +83,14 @@ export default function SalesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [inventoryRes, farmersRes] = await Promise.all([
+        const [inventoryRes, farmersRes, salesRes] = await Promise.all([
           fetch(`${API_BASE_URL}/inventory?limit=1000`, { headers: getHeaders() }),
           fetch(`${API_BASE_URL}/farmers`, { headers: getHeaders() }),
+          fetch(`${API_BASE_URL}/sales?limit=50`, { headers: getHeaders() }),
         ]);
         const inventoryData = await inventoryRes.json();
         const farmersData = await farmersRes.json();
+        const salesData = await salesRes.json();
 
         if (inventoryRes.ok && inventoryData.success) {
           const mappedProducts = inventoryData.data.map((item: any) => ({
@@ -93,6 +101,9 @@ export default function SalesPage() {
         }
         if (farmersRes.ok && farmersData.success) {
           setFarmers(farmersData.data || []);
+        }
+        if (salesRes.ok && salesData.success) {
+          setSalesHistory(salesData.data || []);
         }
       } catch (err) {
         console.error("Failed to fetch data:", err);
@@ -273,15 +284,28 @@ export default function SalesPage() {
   const userData = localStorage.getItem("user");
   const isCashier = userData ? JSON.parse(userData).role === "CASHIER" : false;
 
+  const filteredHistory = salesHistory.filter(sale => {
+    const term = historySearchTerm.toLowerCase();
+    const invMatch = sale.invoiceNumber?.toLowerCase().includes(term);
+    const custMatch = sale.customerName?.toLowerCase().includes(term) || sale.farmerId?.name?.toLowerCase().includes(term);
+    return invMatch || custMatch;
+  });
+
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <Tabs defaultValue="pos" className="space-y-6 h-full flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Point of Sale</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Sales</h2>
           <p className="text-muted-foreground">
-            Create new sales invoices and process payments.
+            Manage point of sale and sales history.
           </p>
         </div>
+        
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          <TabsList>
+            <TabsTrigger value="pos">Point of Sale</TabsTrigger>
+            <TabsTrigger value="history">Sales History</TabsTrigger>
+          </TabsList>
         
         {!isCashier && (
           <div className="flex flex-col gap-2 p-3 bg-muted/20 border rounded-lg w-full sm:w-auto">
@@ -316,10 +340,12 @@ export default function SalesPage() {
             )}
           </div>
         )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-        <div className="lg:col-span-2 space-y-4 flex flex-col">
+      <TabsContent value="pos" className="flex-1 mt-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+          <div className="lg:col-span-2 space-y-4 flex flex-col">
           <Card className="flex-1 flex flex-col">
             <CardHeader className="pb-3 border-b">
               <div className="flex justify-between items-center">
@@ -610,6 +636,67 @@ export default function SalesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
+      </TabsContent>
+
+      <TabsContent value="history" className="flex-1 mt-0">
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Sales</CardTitle>
+            <div className="flex items-center gap-4 mt-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Filter by customer or invoice..." 
+                  className="pl-9"
+                  value={historySearchTerm}
+                  onChange={(e) => setHistorySearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice No</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Total Amount</TableHead>
+                  <TableHead>Payment</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredHistory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No sales found matching your filter.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredHistory.map((sale) => (
+                    <TableRow key={sale._id}>
+                      <TableCell className="font-medium">{sale.invoiceNumber || sale._id.slice(-6).toUpperCase()}</TableCell>
+                      <TableCell>{new Date(sale.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>{sale.customerName || sale.farmerId?.name || "Walk-in"}</TableCell>
+                      <TableCell>₹{sale.totalAmount}</TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          sale.paymentMethod === 'CASH' ? 'bg-success/10 text-success' :
+                          sale.paymentMethod === 'CREDIT' ? 'bg-warning/10 text-warning-foreground' :
+                          'bg-primary/10 text-primary'
+                        }`}>
+                          {sale.paymentMethod}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </TabsContent>
 
       {/* Printable Receipt Modal */}
       <Dialog open={!!completedSale} onOpenChange={(open) => !open && setCompletedSale(null)}>
@@ -690,6 +777,6 @@ export default function SalesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Tabs>
   );
 }
