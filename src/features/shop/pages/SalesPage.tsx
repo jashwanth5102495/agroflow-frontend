@@ -212,7 +212,7 @@ export default function SalesPage() {
   const handleToggleCashierMode = async () => {
     try {
       const newState = !isCashierMode;
-      const res = await fetch(`${API_BASE_URL}/cashier/toggle`, {
+      const res = await fetch(`${API_BASE_URL}/auth/cashier/toggle`, {
         method: "POST",
         headers: { ...getHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ isEnabled: newState }),
@@ -271,14 +271,21 @@ export default function SalesPage() {
                 <LinkIcon className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Cashier Desk Link</span>
               </div>
-              <Button 
-                variant={isCashierMode ? "default" : "outline"}
-                size="sm"
+              
+              {/* Custom Tailwind Toggle */}
+              <button 
+                type="button"
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${isCashierMode ? 'bg-primary' : 'bg-input'}`}
+                role="switch"
+                aria-checked={isCashierMode}
                 onClick={handleToggleCashierMode}
-                className={isCashierMode ? "bg-green-600 hover:bg-green-700 text-white" : ""}
               >
-                {isCashierMode ? "Enabled" : "Enable"}
-              </Button>
+                <span className="sr-only">Toggle Cashier Mode</span>
+                <span 
+                  aria-hidden="true" 
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${isCashierMode ? 'translate-x-5' : 'translate-x-0'}`}
+                />
+              </button>
             </div>
             {isCashierMode && cashierUrl && (
               <div className="flex items-center gap-2">
