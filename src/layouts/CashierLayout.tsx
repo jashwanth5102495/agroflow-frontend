@@ -10,6 +10,7 @@ import {
   Search,
   Sun,
   Moon,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ const getCashierLinks = (shopId: string) => [
   { name: "Sales", href: `/cashier/${shopId}/sales`, icon: ShoppingCart },
   { name: "Farmers", href: `/cashier/${shopId}/farmers`, icon: Users },
   { name: "Inventory", href: `/cashier/${shopId}/inventory`, icon: Package },
+  { name: "Credit Ledger", href: `/cashier/${shopId}/credit`, icon: BookOpen },
 ];
 
 export default function CashierLayout() {

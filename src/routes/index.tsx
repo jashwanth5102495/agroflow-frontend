@@ -167,6 +167,10 @@ export const router = createBrowserRouter([
         path: "inventory",
         element: <InventoryPage />,
       },
+      {
+        path: "credit",
+        element: <CreditLedgerPage />,
+      },
     ],
   },
   {
