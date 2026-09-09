@@ -636,7 +636,6 @@ export default function SalesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
       </TabsContent>
 
       <TabsContent value="history" className="flex-1 mt-0">
