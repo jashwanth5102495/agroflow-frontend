@@ -60,6 +60,9 @@ export default function SalesPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
 
+  // Receipt Modal
+  const [completedSale, setCompletedSale] = useState<any>(null);
+
   // Cashier Mode
   const [isCashierMode, setIsCashierMode] = useState(false);
   const [cashierUrl, setCashierUrl] = useState("");
@@ -189,6 +192,12 @@ export default function SalesPage() {
 
       if (res.ok && data.success) {
         toast.success("Invoice generated successfully!");
+        setCompletedSale({
+          ...data.data,
+          cartItems: cart, // Save cart details for receipt
+          paymentMethod: finalPaymentMethod,
+          downPayment: amtPaid
+        });
         setCart([]);
         setIsCheckoutOpen(false);
       } else {
@@ -556,6 +565,86 @@ export default function SalesPage() {
             <Button onClick={handleCheckout} disabled={isSubmitting || (paymentMethod === "CREDIT" && selectedFarmer === "walkin")}>
               {isSubmitting ? "Processing..." : "Confirm & Generate"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Printable Receipt Modal */}
+      <Dialog open={!!completedSale} onOpenChange={(open) => !open && setCompletedSale(null)}>
+        <DialogContent className="sm:max-w-[400px] print:w-full print:max-w-full print:p-0 print:border-none print:shadow-none bg-white">
+          <DialogHeader className="print:hidden">
+            <DialogTitle>Invoice Generated</DialogTitle>
+            <DialogDescription>
+              Review the invoice and print it for the customer.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {completedSale && (
+            <div id="printable-receipt" className="p-2 space-y-3 text-sm font-mono text-black bg-white print:p-0 print:text-xs">
+              <div className="text-center space-y-1">
+                <h2 className="text-xl font-bold uppercase">{completedSale.shop?.name || "AgriFlow Shop"}</h2>
+                <p>{completedSale.shop?.address}</p>
+                <p>Ph: {completedSale.shop?.phone}</p>
+                <div className="border-b border-dashed my-2 border-gray-400"></div>
+                <h3 className="font-bold text-lg">TAX INVOICE</h3>
+                <div className="text-left mt-2 space-y-0.5">
+                  <p>Inv No: {completedSale.invoiceNumber || completedSale._id?.slice(-6).toUpperCase()}</p>
+                  <p>Date: {new Date(completedSale.createdAt || Date.now()).toLocaleString('en-IN')}</p>
+                  <p>
+                    Customer: {completedSale.customerName || (selectedFarmer !== 'walkin' ? farmers.find(f => f._id === selectedFarmer)?.name : 'Walk-in')}
+                  </p>
+                </div>
+                <div className="border-b border-dashed my-2 border-gray-400"></div>
+              </div>
+
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-dashed border-gray-400">
+                    <th className="py-1 w-1/2">Item</th>
+                    <th className="py-1 text-center w-1/6">Qty</th>
+                    <th className="py-1 text-right w-1/6">Price</th>
+                    <th className="py-1 text-right w-1/6">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {completedSale.cartItems?.map((item: any, i: number) => (
+                    <tr key={i}>
+                      <td className="py-1 pr-1 break-words">{item.name}</td>
+                      <td className="py-1 text-center">{item.qty}</td>
+                      <td className="py-1 text-right">{item.price}</td>
+                      <td className="py-1 text-right">{item.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="border-t border-dashed border-gray-400 pt-2 mt-2 space-y-1 text-right">
+                <div className="flex justify-between font-bold text-base">
+                  <span>Grand Total:</span>
+                  <span>₹{completedSale.totalAmount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Paid ({completedSale.paymentMethod}):</span>
+                  <span>₹{completedSale.downPayment}</span>
+                </div>
+                {completedSale.paymentMethod === 'CREDIT' && (
+                  <div className="flex justify-between font-semibold">
+                    <span>Balance (Credit):</span>
+                    <span>₹{completedSale.totalAmount - (Number(completedSale.downPayment) || 0)}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-dashed border-gray-400 pt-3 mt-4 text-center space-y-1">
+                <p className="font-bold text-base italic">Thanks for visiting! See you again!</p>
+                <p className="text-[10px] text-gray-500 mt-2 font-sans">Software by BluNet IT Services</p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setCompletedSale(null)}>Close</Button>
+            <Button onClick={() => window.print()}><ReceiptText className="w-4 h-4 mr-2" /> Print Bill</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
