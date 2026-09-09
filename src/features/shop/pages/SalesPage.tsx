@@ -67,7 +67,7 @@ export default function SalesPage() {
   // Sales History
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
   const [historySearchTerm, setHistorySearchTerm] = useState("");
-  const [isFetchingHistory, setIsFetchingHistory] = useState(false);
+  const [salesSummary, setSalesSummary] = useState({ todaySales: 0, overallSales: 0 });
 
   // Cashier Mode
   const [isCashierMode, setIsCashierMode] = useState(false);
@@ -83,14 +83,16 @@ export default function SalesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [inventoryRes, farmersRes, salesRes] = await Promise.all([
+        const [inventoryRes, farmersRes, salesRes, summaryRes] = await Promise.all([
           fetch(`${API_BASE_URL}/inventory?limit=1000`, { headers: getHeaders() }),
           fetch(`${API_BASE_URL}/farmers`, { headers: getHeaders() }),
           fetch(`${API_BASE_URL}/sales?limit=50`, { headers: getHeaders() }),
+          fetch(`${API_BASE_URL}/dashboard/summary`, { headers: getHeaders() }),
         ]);
         const inventoryData = await inventoryRes.json();
         const farmersData = await farmersRes.json();
         const salesData = await salesRes.json();
+        const summaryData = await summaryRes.json();
 
         if (inventoryRes.ok && inventoryData.success) {
           const mappedProducts = inventoryData.data.map((item: any) => ({
@@ -104,6 +106,12 @@ export default function SalesPage() {
         }
         if (salesRes.ok && salesData.success) {
           setSalesHistory(salesData.data || []);
+        }
+        if (summaryRes.ok && summaryData.success) {
+          setSalesSummary({
+            todaySales: summaryData.data.todaySales || 0,
+            overallSales: summaryData.data.overallSales || 0
+          });
         }
       } catch (err) {
         console.error("Failed to fetch data:", err);
@@ -638,7 +646,32 @@ export default function SalesPage() {
       </Dialog>
       </TabsContent>
 
-      <TabsContent value="history" className="flex-1 mt-0">
+      <TabsContent value="history" className="flex-1 mt-0 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="bg-primary/5 border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-primary flex items-center justify-between">
+                Today's Sales
+                <IndianRupee className="h-4 w-4" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">₹{salesSummary.todaySales.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+            </CardContent>
+          </Card>
+          <Card className="bg-muted/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                Overall Sales
+                <ReceiptText className="h-4 w-4" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">₹{salesSummary.overallSales.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Recent Sales</CardTitle>
