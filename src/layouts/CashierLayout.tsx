@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { 
   Package, 
   Users, 
@@ -23,13 +23,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const cashierLinks = [
-  { name: "Sales", href: "/cashier/sales", icon: ShoppingCart },
-  { name: "Farmers", href: "/cashier/farmers", icon: Users },
-  { name: "Inventory", href: "/cashier/inventory", icon: Package },
+const getCashierLinks = (shopId: string) => [
+  { name: "Sales", href: `/cashier/${shopId}/sales`, icon: ShoppingCart },
+  { name: "Farmers", href: `/cashier/${shopId}/farmers`, icon: Users },
+  { name: "Inventory", href: `/cashier/${shopId}/inventory`, icon: Package },
 ];
 
 export default function CashierLayout() {
+  const { shopId } = useParams();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [language, setLanguage] = useState(() => {
@@ -115,8 +116,8 @@ export default function CashierLayout() {
         
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
-            {cashierLinks.map((link) => {
-              const isActive = location.pathname === link.href || (location.pathname.startsWith(link.href) && link.href !== "/cashier");
+            {getCashierLinks(shopId || '').map((link) => {
+              const isActive = location.pathname === link.href || (location.pathname.startsWith(link.href) && link.href !== `/cashier/${shopId}`);
               const Icon = link.icon;
               return (
                 <Link

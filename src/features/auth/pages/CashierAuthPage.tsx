@@ -25,7 +25,7 @@ export default function CashierAuthPage() {
           localStorage.setItem("user", JSON.stringify(data.data.user));
           localStorage.setItem("shop", JSON.stringify(data.data.shop));
           toast.success("Logged in as Cashier successfully!");
-          navigate("/cashier/sales");
+          navigate(`/cashier/${shopId}/sales`);
         } else {
           setError(data.message || "Invalid or expired cashier link");
         }

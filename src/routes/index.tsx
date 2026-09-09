@@ -146,12 +146,14 @@ export const router = createBrowserRouter([
     element: <CashierAuthPage />,
   },
   {
-    path: "/cashier",
+    path: "/cashier/:shopId",
     element: <CashierLayout />,
     children: [
       {
         index: true,
-        element: <Navigate to="/cashier/sales" replace />,
+        // Optional: Could redirect to /cashier/:shopId/sales but we can't easily use Navigate with params here in a simple way
+        // So let's render a component that redirects
+        element: <Navigate to="sales" replace />,
       },
       {
         path: "sales",
