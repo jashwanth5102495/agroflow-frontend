@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon } from "lucide-react";
+import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon, IndianRupee } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 import { toast } from "sonner";
 import {

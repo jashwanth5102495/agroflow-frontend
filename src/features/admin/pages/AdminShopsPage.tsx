@@ -10,7 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, RefreshCw, Store, Trash2 } from "lucide-react";
+import { Search, RefreshCw, Store, Trash2, CreditCard } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { API_BASE_URL } from "@/config/api";
 import {
@@ -42,6 +44,9 @@ interface ShopData {
     email?: string;
     lastLoginAt?: string;
   };
+  subscriptionPrice?: number;
+  isSubscriptionEnforced?: boolean;
+  subscriptionStatus?: string;
 }
 
 export default function AdminShopsPage() {
@@ -51,6 +56,11 @@ export default function AdminShopsPage() {
   
   const [shopToDelete, setShopToDelete] = useState<ShopData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [shopToManageSub, setShopToManageSub] = useState<ShopData | null>(null);
+  const [subPrice, setSubPrice] = useState("1500");
+  const [subEnforced, setSubEnforced] = useState(false);
+  const [isUpdatingSub, setIsUpdatingSub] = useState(false);
 
   const fetchShops = async () => {
     setIsLoading(true);
@@ -105,6 +115,37 @@ export default function AdminShopsPage() {
     } finally {
       setIsDeleting(false);
       setShopToDelete(null);
+    }
+  };
+
+  const handleUpdateSubscription = async () => {
+    if (!shopToManageSub) return;
+    setIsUpdatingSub(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/admin/shops/${shopToManageSub._id}/subscription`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscriptionPrice: Number(subPrice),
+          isSubscriptionEnforced: subEnforced
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success("Subscription settings updated!");
+        setShopToManageSub(null);
+        fetchShops();
+      } else {
+        toast.error(data.message || "Failed to update subscription");
+      }
+    } catch (err) {
+      toast.error("Network error");
+    } finally {
+      setIsUpdatingSub(false);
     }
   };
 
@@ -205,7 +246,18 @@ export default function AdminShopsPage() {
                         year: "numeric",
                       })}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right flex items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShopToManageSub(shop);
+                          setSubPrice((shop.subscriptionPrice || 1500).toString());
+                          setSubEnforced(!!shop.isSubscriptionEnforced);
+                        }}
+                      >
+                        <CreditCard className="h-4 w-4 text-primary" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -243,6 +295,41 @@ export default function AdminShopsPage() {
             </Button>
             <Button variant="destructive" onClick={handleDeleteShop} disabled={isDeleting}>
               {isDeleting ? "Deleting..." : "Delete Shop"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Subscription Dialog */}
+      <Dialog open={!!shopToManageSub} onOpenChange={(open) => !open && setShopToManageSub(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage Subscription</DialogTitle>
+            <DialogDescription>
+              Configure auto-pay subscription settings for {shopToManageSub?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Monthly Subscription Price (₹)</Label>
+              <Input 
+                type="number" 
+                value={subPrice} 
+                onChange={(e) => setSubPrice(e.target.value)} 
+              />
+            </div>
+            <div className="flex items-center justify-between border p-3 rounded-lg">
+              <div>
+                <Label className="text-base">Enforce Subscription</Label>
+                <p className="text-xs text-muted-foreground">If enabled, shop owner must pay to use the software.</p>
+              </div>
+              <Switch checked={subEnforced} onCheckedChange={setSubEnforced} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShopToManageSub(null)} disabled={isUpdatingSub}>Cancel</Button>
+            <Button onClick={handleUpdateSubscription} disabled={isUpdatingSub}>
+              {isUpdatingSub ? "Updating..." : "Save Settings"}
             </Button>
           </DialogFooter>
         </DialogContent>

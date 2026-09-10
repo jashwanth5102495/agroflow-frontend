@@ -130,6 +130,9 @@ export default function DashboardLayout() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>(() => {
     return currentShop?.subscriptionStatus || "ACTIVE";
   });
+  const [isSubscriptionEnforced, setIsSubscriptionEnforced] = useState<boolean>(() => {
+    return currentShop?.isSubscriptionEnforced || false;
+  });
 
   useEffect(() => {
     const checkSub = async () => {
@@ -142,6 +145,7 @@ export default function DashboardLayout() {
         const d = await res.json();
         if (res.ok && d.success && d.data) {
           setSubscriptionStatus(d.data.subscriptionStatus);
+          setIsSubscriptionEnforced(d.data.isSubscriptionEnforced);
         }
       } catch (err) {
         // Backend not reachable or offline
@@ -150,10 +154,10 @@ export default function DashboardLayout() {
     checkSub();
   }, [location.pathname]);
 
-  // Temporarily disabled for testing phase
-  const isSubLocked = false; /* currentPath.startsWith("/shop") && 
+  const isSubLocked = currentPath.startsWith("/shop") && 
     currentPath !== "/shop/billing" && 
-    subscriptionStatus === "PENDING_PAYMENT"; */
+    isSubscriptionEnforced && 
+    subscriptionStatus !== "ACTIVE";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

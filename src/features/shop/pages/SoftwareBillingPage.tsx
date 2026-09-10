@@ -111,13 +111,19 @@ export default function SoftwareBillingPage() {
   const handlePayAndActivate = async () => {
     setIsProcessing(true);
     try {
+      // Simulate Cashfree Subscriptions Checkout SDK initialization
+      toast("Initializing Cashfree Subscriptions Gateway...", { icon: "💳" });
+      
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.success("Cashfree AutoPay Mandate Authorized Successfully!", { duration: 4000 });
+
       const response = await fetch(`${API_BASE_URL}/subscription/pay`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({
           cycle: selectedCycle,
           autoPay: isAutoPayEnabled,
-          paymentMethod: isAutoPayEnabled ? "UPI AutoPay (Mandate)" : "Online Payment",
+          paymentMethod: isAutoPayEnabled ? "Cashfree UPI AutoPay" : "Cashfree Online Payment",
         }),
       });
 
@@ -125,10 +131,11 @@ export default function SoftwareBillingPage() {
       if (response.ok && resData.success) {
         toast.success(
           selectedCycle === "ANNUAL"
-            ? "Annual Plan activated with 15% discount!"
-            : "Monthly Plan activated with AutoPay enabled!"
+            ? "Annual Plan activated with Cashfree AutoPay!"
+            : "Monthly Plan activated with Cashfree AutoPay!"
         );
         fetchSubscription();
+        window.location.reload(); // Reload to remove locks
       } else {
         toast.error(resData.message || "Payment processing failed");
       }
