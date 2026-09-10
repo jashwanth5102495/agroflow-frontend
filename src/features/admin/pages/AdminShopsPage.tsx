@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, RefreshCw, Store, Trash2, CreditCard } from "lucide-react";
+import { Search, RefreshCw, Store, Trash2, CreditCard, CloudDownload, CloudUpload } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -62,6 +62,9 @@ export default function AdminShopsPage() {
   const [subEnforced, setSubEnforced] = useState(false);
   const [isUpdatingSub, setIsUpdatingSub] = useState(false);
 
+  const [dataRequests, setDataRequests] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
   const fetchShops = async () => {
     setIsLoading(true);
     try {
@@ -88,7 +91,75 @@ export default function AdminShopsPage() {
 
   useEffect(() => {
     fetchShops();
+    fetchDataRequests();
   }, []);
+
+  const fetchDataRequests = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/backup/admin/requests`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setDataRequests(data.data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch data requests");
+    }
+  };
+
+  const handleDownloadBackup = async (shopId: string, period: string, shopName: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_BASE_URL}/backup/admin/shops/${shopId}?period=${period}&clearData=true`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `agroflow_backup_${shopName}_${period}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Backup downloaded and live data cleared!");
+    } catch (err) {
+      toast.error("Failed to download backup");
+    }
+  };
+
+  const handleUploadBackup = async (e: React.ChangeEvent<HTMLInputElement>, shopId: string, requestId?: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("backupFile", file);
+    if (requestId) formData.append("requestId", requestId);
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_BASE_URL}/backup/admin/shops/${shopId}/restore`, {
+        method: "POST",
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success("Backup data appended successfully!");
+        fetchDataRequests();
+      } else {
+        toast.error(data.message || "Failed to restore backup");
+      }
+    } catch (err) {
+      toast.error("Upload failed");
+    } finally {
+      setIsUploading(false);
+      e.target.value = ''; // reset input
+    }
+  };
 
   const handleDeleteShop = async () => {
     if (!shopToDelete) return;
@@ -250,6 +321,14 @@ export default function AdminShopsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => handleDownloadBackup(shop._id, 'monthly', shop.name)}
+                        title="Download Backup & Clear Old Data"
+                      >
+                        <CloudDownload className="h-4 w-4 text-emerald-500" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           setShopToManageSub(shop);
                           setSubPrice((shop.subscriptionPrice || 1500).toString());
@@ -277,6 +356,70 @@ export default function AdminShopsPage() {
         <div className="p-4 border-t flex items-center justify-between text-sm text-muted-foreground">
           <div>Showing {filteredShops.length} of {shops.length} shops</div>
         </div>
+      </div>
+
+      {/* Pending Data Requests */}
+      <div className="mt-8">
+        <h3 className="text-xl font-bold tracking-tight mb-4">Pending Data Requests (₹50 Paid)</h3>
+        {dataRequests.length === 0 ? (
+          <div className="bg-card border rounded-xl p-8 text-center text-muted-foreground">
+            No pending data requests.
+          </div>
+        ) : (
+          <div className="bg-card border rounded-xl overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Shop Details</TableHead>
+                  <TableHead>Requested Period</TableHead>
+                  <TableHead>Request Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {dataRequests.map((req) => (
+                  <TableRow key={req._id}>
+                    <TableCell>
+                      <p className="font-medium text-foreground">{req.shopId?.name}</p>
+                      <p className="text-xs text-muted-foreground">{req.shopId?.phone}</p>
+                    </TableCell>
+                    <TableCell>
+                      {req.month} {req.year}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(req.requestDate).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">
+                        {req.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end">
+                        <label className="cursor-pointer relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2">
+                          <CloudUpload className="h-4 w-4" />
+                          {isUploading ? "Uploading..." : "Upload JSON Backup"}
+                          <input 
+                            type="file" 
+                            accept=".json" 
+                            className="hidden" 
+                            onChange={(e) => handleUploadBackup(e, req.shopId?._id, req._id)}
+                            disabled={isUploading}
+                          />
+                        </label>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
       
       {/* Delete Confirmation Dialog */}

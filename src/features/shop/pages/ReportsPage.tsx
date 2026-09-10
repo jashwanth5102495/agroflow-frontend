@@ -38,6 +38,33 @@ export default function ReportsPage() {
     toast.info(`${reportName} generation will be available once sales data is recorded.`);
   };
 
+  const handleRequestOldData = async () => {
+    try {
+      const now = new Date();
+      // Usually would prompt for month/year, we just send current for mock
+      const month = now.toLocaleString('default', { month: 'long' });
+      const year = now.getFullYear();
+
+      // Simulate payment
+      toast("Initializing Payment Gateway for ₹50...", { icon: "💳" });
+      await new Promise(r => setTimeout(r, 1500));
+      
+      const res = await fetch(`${API_BASE_URL}/backup/shop/request-data`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ month, year })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success("Payment successful! Request sent to Admin. Your data will be restored shortly.", { duration: 5000 });
+      } else {
+        toast.error("Request failed");
+      }
+    } catch (err) {
+      toast.error("Could not connect to server");
+    }
+  };
+
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   return (
@@ -140,6 +167,29 @@ export default function ReportsPage() {
                 <Button variant="outline" className="w-full mt-auto" onClick={() => handleGenerateReport(report.name)}>Generate</Button>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5 text-primary" />
+            Request Historical Data Archive
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-background p-4 rounded-lg border shadow-sm">
+            <div>
+              <p className="font-medium text-foreground">Need detailed line-by-line sales data from past months?</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Detailed receipts older than 30 days are automatically archived. 
+                You can request a complete restore of any previous month's data for ₹50.
+              </p>
+            </div>
+            <Button onClick={handleRequestOldData} className="whitespace-nowrap gradient-btn shadow-sm">
+              Request Old Data (₹50)
+            </Button>
           </div>
         </CardContent>
       </Card>
