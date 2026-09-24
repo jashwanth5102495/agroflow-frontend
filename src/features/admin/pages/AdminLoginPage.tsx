@@ -24,7 +24,12 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ emailOrPhone, password }),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        // Non-JSON response
+      }
 
       if (response.ok && data.success) {
         localStorage.setItem("token", data.data.token);
@@ -32,7 +37,7 @@ export default function AdminLoginPage() {
         toast.success("Admin access granted");
         navigate("/admin");
       } else {
-        toast.error(data.message || "Invalid admin credentials");
+        toast.error(data.message || `Admin login failed (${response.status})`);
       }
     } catch (err) {
       toast.error("Cannot connect to server. Please ensure backend is running.");
