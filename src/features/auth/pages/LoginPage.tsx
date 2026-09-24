@@ -14,16 +14,33 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const cleanPhone = phone.trim();
+    if (!cleanPhone) {
+      toast.error("Please enter your phone number");
+      return;
+    }
+
+    if (cleanPhone.length < 10) {
+      toast.error("Phone number must be at least 10 digits");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, password }),
+        body: JSON.stringify({ phone: cleanPhone, password }),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        // Response wasn't valid JSON
+      }
 
       if (response.ok && data.success) {
         localStorage.setItem("token", data.data.token);
@@ -38,7 +55,7 @@ export default function LoginPage() {
           navigate("/shop");
         }
       } else {
-        toast.error(data.message || "Invalid credentials");
+        toast.error(data.message || `Login failed (${response.status})`);
       }
     } catch (err) {
       toast.error("Cannot connect to server. Please ensure the backend is running.");

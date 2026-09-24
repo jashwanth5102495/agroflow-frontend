@@ -87,7 +87,7 @@ export default function AdminReportsPage() {
             {[
               { name: "All Shops Directory", desc: "List of all registered shops with contact details and status." },
               { name: "Monthly Platform Sales", desc: "Aggregated monthly sales and credit overview across all shops." },
-              { name: "WhatsApp Notification Logs", desc: "Summary of daily report transmissions and gateway health." },
+              { name: "Telegram Notification Logs", desc: "Summary of daily report transmissions and gateway health." },
             ].map((report, idx) => (
               <div key={idx} className="border p-4 rounded-lg flex flex-col gap-3 hover:border-primary transition-colors cursor-pointer group">
                 <div>

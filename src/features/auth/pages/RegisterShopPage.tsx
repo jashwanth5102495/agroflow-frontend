@@ -28,13 +28,19 @@ export default function RegisterShopPage() {
       return;
     }
 
+    const phone = (formData.get("phone") as string || "").trim();
+    if (phone.length < 10) {
+      toast.error("Phone number must be at least 10 digits");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       const body = {
         shopName: formData.get("shopName") as string,
         ownerName: formData.get("ownerName") as string,
-        phone: formData.get("phone") as string,
+        phone,
         email: (formData.get("email") as string) || undefined,
         password,
         address: formData.get("address") as string,
@@ -51,7 +57,12 @@ export default function RegisterShopPage() {
         body: JSON.stringify(body),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        // Response wasn't valid JSON
+      }
 
       if (response.ok && data.success) {
         localStorage.setItem("token", data.data.token);

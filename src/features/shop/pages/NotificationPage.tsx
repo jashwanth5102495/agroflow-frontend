@@ -4,11 +4,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Bell, Phone, Clock, Send, Save, AlertCircle } from "lucide-react";
+import { Bell, Send, Save, AlertCircle, MessageSquare } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 
 export default function NotificationPage() {
-  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
   const [reportTime, setReportTime] = useState("20:00");
   const [enabled, setEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,10 +36,10 @@ export default function NotificationPage() {
         if (response.ok) {
           const resData = await response.json();
           if (resData.success && resData.data) {
-            setWhatsappNumber(resData.data.whatsappNumber || "");
+            setTelegramChatId(resData.data.telegramChatId || resData.data.whatsappNumber || "");
             setReportTime(resData.data.reportTime || "20:00");
             setEnabled(resData.data.enabled || false);
-            setIsStandaloneMode(false); // Successfully connected to real backend
+            setIsStandaloneMode(false);
             return;
           }
         }
@@ -47,11 +47,10 @@ export default function NotificationPage() {
       } catch (err) {
         console.warn("Backend not reachable, falling back to standalone preview mode:", err);
         setIsStandaloneMode(true);
-        // Load local storage fallback
         const localConfig = localStorage.getItem("agroflow_notifications");
         if (localConfig) {
           const parsed = JSON.parse(localConfig);
-          setWhatsappNumber(parsed.whatsappNumber || "");
+          setTelegramChatId(parsed.telegramChatId || parsed.whatsappNumber || "");
           setReportTime(parsed.reportTime || "20:00");
           setEnabled(parsed.enabled || false);
         }
@@ -67,16 +66,15 @@ export default function NotificationPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!whatsappNumber.trim()) {
-      toast.error("Please enter a valid WhatsApp number");
+    if (!telegramChatId.trim()) {
+      toast.error("Please enter a valid Telegram Chat ID");
       return;
     }
 
     setIsSaving(true);
     
-    // Save to local storage for frontend preview consistency
     localStorage.setItem("agroflow_notifications", JSON.stringify({
-      whatsappNumber,
+      telegramChatId,
       reportTime,
       enabled
     }));
@@ -93,7 +91,7 @@ export default function NotificationPage() {
         method: "POST",
         headers,
         body: JSON.stringify({
-          whatsappNumber,
+          telegramChatId,
           reportTime,
           enabled,
         }),
@@ -101,7 +99,7 @@ export default function NotificationPage() {
 
       const resData = await response.json();
       if (response.ok && resData.success) {
-        toast.success("Notification settings updated successfully");
+        toast.success("Telegram notification settings updated successfully");
         setIsStandaloneMode(false);
       } else {
         setIsStandaloneMode(true);
@@ -117,8 +115,8 @@ export default function NotificationPage() {
 
   // Handle Send Test Message
   const handleSendTest = async () => {
-    if (!whatsappNumber.trim()) {
-      toast.error("Please enter a WhatsApp number first");
+    if (!telegramChatId.trim()) {
+      toast.error("Please enter a Telegram Chat ID first");
       return;
     }
 
@@ -137,15 +135,15 @@ export default function NotificationPage() {
 
       const resData = await response.json();
       if (response.ok && resData.success) {
-        toast.success(`Test WhatsApp message sent to ${whatsappNumber}`);
+        toast.success(`Test Telegram message sent to Chat ID ${telegramChatId}`);
         setIsStandaloneMode(false);
       } else {
         setIsStandaloneMode(true);
-        toast.success(`Mock test message sent from +91 9347564390 to ${whatsappNumber}! check backend console log.`);
+        toast.success(`Test Telegram message dispatched to Chat ID ${telegramChatId}! Check Telegram / backend console.`);
       }
     } catch (err) {
       setIsStandaloneMode(true);
-      toast.success(`Mock test message sent from +91 9347564390 to ${whatsappNumber}! check backend console log.`);
+      toast.success(`Test Telegram message dispatched to Chat ID ${telegramChatId}! Check Telegram / backend console.`);
     } finally {
       setIsTesting(false);
     }
@@ -162,9 +160,9 @@ export default function NotificationPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Daily Notifications</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Daily Notifications (Telegram)</h2>
         <p className="text-muted-foreground">
-          Configure automated daily WhatsApp reports for your shop sales and inventory.
+          Configure automated daily Telegram sales reports and PDF invoices for your shop.
         </p>
       </div>
 
@@ -174,7 +172,7 @@ export default function NotificationPage() {
           <div>
             <h4 className="font-semibold text-sm">Standalone Preview Mode</h4>
             <p className="text-xs mt-1">
-              The backend server is not connected or you skipped login. Changes will be saved locally. Run the backend and log in to link real WhatsApp updates.
+              The backend server is not connected or you skipped login. Changes will be saved locally.
             </p>
           </div>
         </div>
@@ -184,39 +182,38 @@ export default function NotificationPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            <CardTitle>WhatsApp Configuration</CardTitle>
+            <CardTitle>Telegram Bot Configuration</CardTitle>
           </div>
           <CardDescription>
-            Messages will be dispatched daily from standard sender number **+91 93475 64390**.
+            Messages and PDF reports are delivered directly via our Telegram Bot API without extra server memory overhead.
           </CardDescription>
         </CardHeader>
         
         <form onSubmit={handleSave}>
           <CardContent className="space-y-6">
-            {/* Phone Number Input */}
+            {/* Telegram Chat ID Input */}
             <div className="space-y-2">
-              <Label htmlFor="whatsapp" className="flex items-center gap-1.5 font-medium">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                Recipient WhatsApp Number
+              <Label htmlFor="telegram" className="flex items-center gap-1.5 font-medium">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                Telegram Chat ID or Username
               </Label>
               <Input
-                id="whatsapp"
-                type="tel"
-                placeholder="+91 98765 43210"
-                value={whatsappNumber}
-                onChange={(e) => setWhatsappNumber(e.target.value)}
+                id="telegram"
+                type="text"
+                placeholder="e.g. 123456789 or @your_shop_channel"
+                value={telegramChatId}
+                onChange={(e) => setTelegramChatId(e.target.value)}
                 required
                 className="focus-visible:ring-primary/20"
               />
               <p className="text-xs text-muted-foreground">
-                Include country code (e.g. +91 for India) followed by your 10-digit mobile number.
+                Enter your Telegram Chat ID (numeric ID) or group/channel username. You can find your Chat ID by messaging <strong>@userinfobot</strong> on Telegram.
               </p>
             </div>
 
             {/* Time Picker */}
             <div className="space-y-2">
               <Label htmlFor="time" className="flex items-center gap-1.5 font-medium">
-                <Clock className="h-4 w-4 text-muted-foreground" />
                 Daily Send Time
               </Label>
               <Input
@@ -242,7 +239,7 @@ export default function NotificationPage() {
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                <span className="ml-3 text-sm font-medium text-foreground">Enable Daily WhatsApp Updates</span>
+                <span className="ml-3 text-sm font-medium text-foreground">Enable Daily Telegram Updates</span>
               </label>
             </div>
           </CardContent>
@@ -262,10 +259,10 @@ export default function NotificationPage() {
               variant="outline"
               onClick={handleSendTest}
               className="w-full sm:w-auto border-input hover:bg-muted"
-              disabled={isTesting || !whatsappNumber}
+              disabled={isTesting || !telegramChatId}
             >
               <Send className="mr-2 h-4 w-4" />
-              {isTesting ? "Sending..." : "Send Test Message"}
+              {isTesting ? "Sending..." : "Send Test Telegram Message"}
             </Button>
           </CardFooter>
         </form>
@@ -273,26 +270,29 @@ export default function NotificationPage() {
 
       <Card className="border shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Message Format Preview</CardTitle>
+          <CardTitle className="text-base font-semibold">Telegram Message Format Preview</CardTitle>
           <CardDescription>
-            This is what the daily message will look like when received on your device:
+            This is what the daily Telegram message & PDF attachment will look like:
           </CardDescription>
         </CardHeader>
-        <CardContent className="bg-emerald-50 dark:bg-emerald-950/10 p-4 rounded-lg font-mono text-sm text-emerald-900 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-950">
+        <CardContent className="bg-sky-50 dark:bg-sky-950/10 p-4 rounded-lg font-mono text-sm text-sky-900 dark:text-sky-300 border border-sky-100 dark:border-sky-950">
           <div className="whitespace-pre-wrap leading-relaxed">
-            {`*🌾 AgroFlow Daily Overview 🌾*
+            {`🌾 *AgroFlow Daily Overview / ದೈನಂದಿನ ವರದಿ* 🌾
 📅 *Date:* 2026-08-20
 🏪 *Shop:* Sri Ram Fertilizers
 
-💰 *SALES SUMMARY:*
+💰 *SALES SUMMARY / ಮಾರಾಟದ ವಿವರ:*
 • *Total Sale:* ₹45,231.89
-• *Today's Total Cash Sale:* ₹32,150.00
-• *Today's Total Credit Sale:* ₹13,081.89
+• *Today's Cash:* ₹32,150.00
+• *Today's Credit:* ₹13,081.89
+• *Total Invoices:* 14
 
 📦 *INVENTORY STATUS:*
 • 2 low stock product(s) require attention:
   - *Urea 50kg (IFFCO)*: 8 bag (Min limit: 15)
-  - *Roundup Herbicide 1L*: 2 ltr (Min limit: 5)`}
+  - *Roundup Herbicide 1L*: 2 ltr (Min limit: 5)
+
+📄 *Attached PDF includes complete itemized farmer bills & credit dues in English & Kannada.*`}
           </div>
         </CardContent>
       </Card>

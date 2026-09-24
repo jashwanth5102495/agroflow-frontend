@@ -15,7 +15,7 @@ import AdminShopsPage from "@/features/admin/pages/AdminShopsPage";
 import AdminAgentsPage from "@/features/admin/pages/AdminAgentsPage";
 import AdminReportsPage from "@/features/admin/pages/AdminReportsPage";
 import AdminLoginPage from "@/features/admin/pages/AdminLoginPage";
-import WhatsAppGatewayPage from "@/features/admin/pages/WhatsAppGatewayPage";
+import TelegramGatewayPage from "@/features/admin/pages/TelegramGatewayPage";
 import SettingsPage from "@/features/shop/pages/SettingsPage";
 import SoftwareBillingPage from "@/features/shop/pages/SoftwareBillingPage";
 import NotificationPage from "@/features/shop/pages/NotificationPage";
@@ -124,8 +124,8 @@ export const router = createBrowserRouter([
             element: <AdminReportsPage />,
           },
           {
-            path: "whatsapp-gateway",
-            element: <WhatsAppGatewayPage />,
+            path: "telegram-gateway",
+            element: <TelegramGatewayPage />,
           },
         ],
       },

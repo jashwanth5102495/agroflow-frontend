@@ -50,7 +50,7 @@ const adminLinks = [
   { name: "Agents", href: "/admin/agents", icon: UserSquare2 },
   { name: "Shops", href: "/admin/shops", icon: Store },
   { name: "Reports", href: "/admin/reports", icon: FileText },
-  { name: "WhatsApp Gateway", href: "/admin/whatsapp-gateway", icon: Settings },
+  { name: "Telegram Gateway", href: "/admin/telegram-gateway", icon: Settings },
 ];
 
 const agentLinks = [
@@ -327,7 +327,7 @@ export default function DashboardLayout() {
                     Subscription Activation Required
                   </h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Your store registration is complete. To unlock full real-time POS billing, inventory tracking, credit ledger, and daily WhatsApp reports, please activate your AutoPay plan.
+                    Your store registration is complete. To unlock full real-time POS billing, inventory tracking, credit ledger, and daily Telegram reports, please activate your AutoPay plan.
                   </p>
                 </div>
 

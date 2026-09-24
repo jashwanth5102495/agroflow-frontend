@@ -203,7 +203,7 @@ export default function SoftwareBillingPage() {
             <p className="text-xs text-muted-foreground">
               {isActive
                 ? `AutoPay is ${data?.autoPay ? "Active (Recurring)" : "Manual"}. Dashboard is unlocked.`
-                : "Your shop dashboard is in preview mode. Activate AutoPay below to unlock full real-time POS, ledger, and WhatsApp reports."}
+                : "Your shop dashboard is in preview mode. Activate AutoPay below to unlock full real-time POS, ledger, and Telegram reports."}
             </p>
           </CardContent>
         </Card>
@@ -289,7 +289,7 @@ export default function SoftwareBillingPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                  <span>Daily 8 PM WhatsApp overview reports</span>
+                  <span>Daily 8 PM Telegram overview reports</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
@@ -344,7 +344,7 @@ export default function SoftwareBillingPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Priority WhatsApp notification delivery</span>
+                  <span>Priority Telegram notification delivery</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
