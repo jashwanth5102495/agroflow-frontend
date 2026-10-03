@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { API_BASE_URL } from "@/config/api";
+import BannerSlideshow from "@/components/BannerSlideshow";
 
 interface BillingRecord {
   _id?: string;
@@ -161,6 +162,7 @@ export default function SoftwareBillingPage() {
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
+      <BannerSlideshow />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Software Billing & AutoPay</h2>

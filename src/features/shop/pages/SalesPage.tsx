@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon, IndianRupee } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
+import BannerSlideshow from "@/components/BannerSlideshow";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -300,7 +301,9 @@ export default function SalesPage() {
   });
 
   return (
-    <Tabs defaultValue="pos" className="space-y-6 h-full flex flex-col">
+    <div className="space-y-6 flex flex-col h-full">
+      <BannerSlideshow />
+      <Tabs defaultValue="pos" className="space-y-6 flex-1 flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Sales</h2>
@@ -810,5 +813,6 @@ export default function SalesPage() {
         </DialogContent>
       </Dialog>
     </Tabs>
+    </div>
   );
 }

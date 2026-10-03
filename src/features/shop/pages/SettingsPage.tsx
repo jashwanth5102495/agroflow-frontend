@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
 import { KeyRound, Save } from "lucide-react";
+import BannerSlideshow from "@/components/BannerSlideshow";
 
 export default function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -30,6 +31,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      <BannerSlideshow />
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
         <p className="text-muted-foreground">

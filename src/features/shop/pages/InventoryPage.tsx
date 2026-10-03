@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Download, Upload, Plus, Trash2 } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
+import BannerSlideshow from "@/components/BannerSlideshow";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -262,6 +263,7 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
+      <BannerSlideshow />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>

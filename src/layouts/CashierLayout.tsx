@@ -103,16 +103,16 @@ export default function CashierLayout() {
 
       {/* Sidebar */}
       <aside 
-        className={`${sidebarOpen ? "w-64" : "w-20"} transition-all duration-300 ease-in-out border-r bg-card flex-col z-50 fixed md:relative h-full ${mobileMenuOpen ? "flex" : "hidden md:flex"}`}
+        className={`${sidebarOpen ? "w-64" : "w-20"} transition-all duration-300 ease-in-out border-r border-sky-700/40 bg-sky-600 dark:bg-sky-700 text-white flex-col z-50 fixed md:relative h-full ${mobileMenuOpen ? "flex" : "hidden md:flex"}`}
       >
-        <div className="h-16 flex items-center justify-center border-b px-4">
+        <div className="h-16 flex items-center justify-center border-b border-sky-500/40 px-4">
           {sidebarOpen ? (
             <div className="flex flex-col items-center justify-center">
-              <h2 className="text-xl font-bold text-primary leading-none">AgriFlow</h2>
-              <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold mt-1">Cashier Desk</span>
+              <h2 className="text-xl font-bold text-white leading-none">AgriFlow</h2>
+              <span className="text-[9px] text-sky-100 uppercase tracking-widest font-semibold mt-1">Cashier Desk</span>
             </div>
           ) : (
-            <h2 className="text-xl font-bold text-primary">AF</h2>
+            <h2 className="text-xl font-bold text-white">AF</h2>
           )}
         </div>
         
@@ -127,13 +127,13 @@ export default function CashierLayout() {
                   to={link.href}
                   className={`flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
                     isActive 
-                      ? "bg-primary/10 text-primary" 
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-white/25 text-white font-semibold shadow-sm backdrop-blur-sm" 
+                      : "text-white/85 hover:bg-white/15 hover:text-white"
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
                   title={!sidebarOpen ? link.name : undefined}
                 >
-                  <Icon className={`flex-shrink-0 ${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5`} />
+                  <Icon className={`flex-shrink-0 ${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5 text-white`} />
                   {sidebarOpen && <span>{link.name}</span>}
                 </Link>
               );
@@ -141,15 +141,15 @@ export default function CashierLayout() {
           </nav>
         </div>
         
-        <div className="p-4 border-t space-y-2">
+        <div className="p-4 border-t border-sky-500/40 space-y-2">
           <button
             onClick={() => {
               handleLogout();
               setMobileMenuOpen(false);
             }}
-            className="flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+            className="flex w-full items-center px-3 py-2.5 text-sm font-medium rounded-md text-red-100 hover:bg-red-500/20 hover:text-white transition-colors"
           >
-            <LogOut className={`flex-shrink-0 ${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5`} />
+            <LogOut className={`flex-shrink-0 ${sidebarOpen ? "mr-3" : "mx-auto"} h-5 w-5 text-white`} />
             {sidebarOpen && <span>Logout</span>}
           </button>
         </div>

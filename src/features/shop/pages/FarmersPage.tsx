@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { API_BASE_URL } from "@/config/api";
+import BannerSlideshow from "@/components/BannerSlideshow";
 
 interface Farmer {
   _id: string;
@@ -154,6 +155,7 @@ export default function FarmersPage() {
 
   return (
     <div className="space-y-6">
+      <BannerSlideshow />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Farmers</h2>

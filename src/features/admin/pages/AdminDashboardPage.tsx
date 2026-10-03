@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Store, IndianRupee, Activity } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
+import BannerSlideshow from "@/components/BannerSlideshow";
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState({
@@ -50,6 +51,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
+      <BannerSlideshow />
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Admin Dashboard</h2>
         <p className="text-muted-foreground">

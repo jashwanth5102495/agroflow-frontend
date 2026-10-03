@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { IndianRupee, Search, ChevronDown, ChevronRight, ArrowUpRight, CheckCircle } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 import { toast } from "sonner";
+import BannerSlideshow from "@/components/BannerSlideshow";
 
 // ─── Inline payment input rendered inside each expanded farmer row ────────────
 function InlinePayment({ account, getHeaders, onSuccess }: {
@@ -129,6 +130,7 @@ export default function CreditLedgerPage() {
 
   return (
     <div className="space-y-6">
+      <BannerSlideshow />
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Credit Ledger</h2>
         <p className="text-muted-foreground">Track outstanding credit and receive payments from farmers.</p>

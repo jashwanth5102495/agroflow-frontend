@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { toast } from "sonner";
 import { Bell, Send, Save, AlertCircle, MessageSquare } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
+import BannerSlideshow from "@/components/BannerSlideshow";
 
 export default function NotificationPage() {
   const [telegramChatId, setTelegramChatId] = useState("");
@@ -158,7 +159,8 @@ export default function NotificationPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-4xl">
+      <BannerSlideshow />
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Daily Notifications (Telegram)</h2>
         <p className="text-muted-foreground">
