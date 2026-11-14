@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, RefreshCw, Store, Trash2, CreditCard, CloudDownload, CloudUpload } from "lucide-react";
+import { Search, RefreshCw, Store, Trash2, CreditCard, CloudDownload, CloudUpload, PackageCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -64,6 +64,7 @@ export default function AdminShopsPage() {
 
   const [dataRequests, setDataRequests] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const fetchShops = async () => {
     setIsLoading(true);
@@ -106,6 +107,31 @@ export default function AdminShopsPage() {
       }
     } catch (err) {
       console.error("Failed to fetch data requests");
+    }
+  };
+
+  const handleSeedSSBProducts = async () => {
+    setIsSeeding(true);
+    try {
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE_URL}/admin/seed-ssb?force=true`, {
+        method: "POST",
+        headers,
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(`Successfully synced ${data.data?.totalProducts || 509} products for SSB Hi-Tech farm!`);
+        fetchShops();
+      } else {
+        toast.error(data.message || "Failed to sync SSB farm products");
+      }
+    } catch (err: any) {
+      toast.error("Network error while syncing products");
+    } finally {
+      setIsSeeding(false);
     }
   };
 
@@ -258,9 +284,21 @@ export default function AdminShopsPage() {
             View and manage all shops registered on the platform.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchShops}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSeedSSBProducts}
+            disabled={isSeeding}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+          >
+            <PackageCheck className="mr-2 h-4 w-4" />
+            {isSeeding ? "Syncing Catalog..." : "Sync SSB Farm Catalog (509)"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchShops}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-lg border shadow-sm">
@@ -298,13 +336,22 @@ export default function AdminShopsPage() {
               {filteredShops.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? "No shops match your search." : "No shops registered yet."}
+                    No shops found matching your search.
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredShops.map((shop) => (
                   <TableRow key={shop._id}>
-                    <TableCell className="font-medium">{shop.name}</TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      <div className="flex items-center gap-2">
+                        {shop.name}
+                        {shop.name.toLowerCase().includes("ssb") && (
+                          <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-800 border-emerald-200">
+                            509 Products
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{shop.ownerName}</TableCell>
                     <TableCell>{shop.phone}</TableCell>
                     <TableCell>{shop.district}</TableCell>
@@ -318,6 +365,18 @@ export default function AdminShopsPage() {
                       })}
                     </TableCell>
                     <TableCell className="text-right flex items-center justify-end gap-2">
+                      {shop.name.toLowerCase().includes("ssb") && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleSeedSSBProducts}
+                          disabled={isSeeding}
+                          title="Seed / Sync Products for SSB Hi-Tech farm"
+                          className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                        >
+                          <PackageCheck className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
