@@ -52,7 +52,12 @@ export default function LoginPage() {
         if (data.data.user?.role === "ADMIN") {
           navigate("/admin");
         } else {
-          navigate("/shop");
+          const targetShopId = data.data.shop?._id || data.data.user?.shopId;
+          if (targetShopId) {
+            navigate(`/shop/${targetShopId}`);
+          } else {
+            navigate("/shop");
+          }
         }
       } else {
         toast.error(data.message || `Login failed (${response.status})`);

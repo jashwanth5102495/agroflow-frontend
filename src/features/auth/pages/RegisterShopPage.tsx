@@ -69,7 +69,12 @@ export default function RegisterShopPage() {
         localStorage.setItem("user", JSON.stringify(data.data.user));
         localStorage.setItem("shop", JSON.stringify(data.data.shop));
         toast.success("Shop registered successfully!");
-        navigate("/shop");
+        const targetShopId = data.data.shop?._id || data.data.user?.shopId;
+        if (targetShopId) {
+          navigate(`/shop/${targetShopId}`);
+        } else {
+          navigate("/shop");
+        }
       } else {
         toast.error(data.message || "Registration failed");
       }

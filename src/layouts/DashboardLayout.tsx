@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Package, 
@@ -35,18 +35,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { API_BASE_URL } from "@/config/api";
 
-const shopLinks = [
-  { name: "Dashboard", href: "/shop", icon: LayoutDashboard },
-  { name: "Incoming", href: "/shop/incoming", icon: ArrowDownToLine },
-  { name: "Inventory", href: "/shop/inventory", icon: Package },
-  { name: "Farmers", href: "/shop/farmers", icon: Users },
-  { name: "Sales", href: "/shop/sales", icon: ShoppingCart },
-  { name: "Credit Ledger", href: "/shop/credit", icon: BookOpen },
-  { name: "Reports", href: "/shop/reports", icon: BarChart3 },
-  { name: "Software Billing", href: "/shop/billing", icon: CreditCard },
-  { name: "Notification", href: "/shop/notification", icon: Bell },
-];
-
 const adminLinks = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Agents", href: "/admin/agents", icon: UserSquare2 },
@@ -62,6 +50,7 @@ const agentLinks = [
 ];
 
 export default function DashboardLayout() {
+  const { shopId: routeShopId } = useParams<{ shopId: string }>();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [language, setLanguage] = useState(() => {
@@ -105,6 +94,37 @@ export default function DashboardLayout() {
     window.location.reload();
   };
 
+  const shopData = localStorage.getItem("shop");
+  const userData = localStorage.getItem("user");
+  const currentShop = shopData ? JSON.parse(shopData) : null;
+  const currentUser = userData ? JSON.parse(userData) : null;
+
+  const currentShopId = routeShopId || currentShop?._id || currentUser?.shopId || "";
+
+  const shopLinks = currentShopId
+    ? [
+        { name: "Dashboard", href: `/shop/${currentShopId}`, icon: LayoutDashboard },
+        { name: "Incoming", href: `/shop/${currentShopId}/incoming`, icon: ArrowDownToLine },
+        { name: "Inventory", href: `/shop/${currentShopId}/inventory`, icon: Package },
+        { name: "Farmers", href: `/shop/${currentShopId}/farmers`, icon: Users },
+        { name: "Sales", href: `/shop/${currentShopId}/sales`, icon: ShoppingCart },
+        { name: "Credit Ledger", href: `/shop/${currentShopId}/credit`, icon: BookOpen },
+        { name: "Reports", href: `/shop/${currentShopId}/reports`, icon: BarChart3 },
+        { name: "Software Billing", href: `/shop/${currentShopId}/billing`, icon: CreditCard },
+        { name: "Notification", href: `/shop/${currentShopId}/notification`, icon: Bell },
+      ]
+    : [
+        { name: "Dashboard", href: "/shop", icon: LayoutDashboard },
+        { name: "Incoming", href: "/shop/incoming", icon: ArrowDownToLine },
+        { name: "Inventory", href: "/shop/inventory", icon: Package },
+        { name: "Farmers", href: "/shop/farmers", icon: Users },
+        { name: "Sales", href: "/shop/sales", icon: ShoppingCart },
+        { name: "Credit Ledger", href: "/shop/credit", icon: BookOpen },
+        { name: "Reports", href: "/shop/reports", icon: BarChart3 },
+        { name: "Software Billing", href: "/shop/billing", icon: CreditCard },
+        { name: "Notification", href: "/shop/notification", icon: Bell },
+      ];
+
   const currentPath = location.pathname;
   let sidebarLinks = shopLinks;
   if (currentPath.startsWith("/admin")) {
@@ -112,11 +132,6 @@ export default function DashboardLayout() {
   } else if (currentPath.startsWith("/agent")) {
     sidebarLinks = agentLinks;
   }
-
-  const shopData = localStorage.getItem("shop");
-  const userData = localStorage.getItem("user");
-  const currentShop = shopData ? JSON.parse(shopData) : null;
-  const currentUser = userData ? JSON.parse(userData) : null;
 
   const displayName = currentShop?.name || currentUser?.name || "AgroFlow User";
   const displaySubtext = currentUser?.phone || currentShop?.phone || currentUser?.email || "Shop Admin";
@@ -157,7 +172,7 @@ export default function DashboardLayout() {
   }, [location.pathname]);
 
   const isSubLocked = currentPath.startsWith("/shop") && 
-    currentPath !== "/shop/billing" && 
+    !currentPath.endsWith("/billing") && 
     isSubscriptionEnforced && 
     subscriptionStatus !== "ACTIVE";
 
@@ -189,7 +204,10 @@ export default function DashboardLayout() {
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
             {sidebarLinks.map((link) => {
-              const isActive = location.pathname === link.href || (location.pathname.startsWith(link.href) && !["/shop", "/admin", "/agent"].includes(link.href));
+              const isDashboard = link.name === "Dashboard";
+              const isActive = isDashboard
+                ? (location.pathname === link.href || location.pathname === `${link.href}/dashboard`)
+                : (location.pathname === link.href || location.pathname.startsWith(`${link.href}/`));
               const Icon = link.icon;
               return (
                 <Link
@@ -213,7 +231,7 @@ export default function DashboardLayout() {
         
         <div className="p-4 border-t border-sky-500/40 space-y-2">
           <Link
-            to="/settings"
+            to={currentShopId ? `/shop/${currentShopId}/settings` : "/settings"}
             className="flex items-center px-3 py-2.5 text-sm font-medium rounded-md text-white/85 hover:bg-white/15 hover:text-white transition-colors"
             onClick={() => setMobileMenuOpen(false)}
           >
@@ -294,13 +312,18 @@ export default function DashboardLayout() {
                     <p className="text-xs leading-none text-muted-foreground">
                       {displaySubtext}
                     </p>
+                    {currentShopId && (
+                      <p className="text-[10px] text-muted-foreground/75 font-mono pt-1">
+                        ID: {currentShopId}
+                      </p>
+                    )}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/shop/billing")}>
+                <DropdownMenuItem onClick={() => navigate(currentShopId ? `/shop/${currentShopId}/billing` : "/shop/billing")}>
                   Software Billing & Plans
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                <DropdownMenuItem onClick={() => navigate(currentShopId ? `/shop/${currentShopId}/settings` : "/settings")}>
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -336,7 +359,7 @@ export default function DashboardLayout() {
                 <Button
                   size="lg"
                   className="w-full gradient-btn shadow-md py-6 text-base font-semibold"
-                  onClick={() => navigate("/shop/billing")}
+                  onClick={() => navigate(currentShopId ? `/shop/${currentShopId}/billing` : "/shop/billing")}
                 >
                   <CreditCard className="mr-2 h-5 w-5" />
                   Go to Billing & Activate AutoPay
