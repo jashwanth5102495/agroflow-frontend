@@ -5,6 +5,7 @@ import LoginPage from "@/features/auth/pages/LoginPage";
 import RegisterShopPage from "@/features/auth/pages/RegisterShopPage";
 import ForgotPasswordPage from "@/features/auth/pages/ForgotPasswordPage";
 import DashboardPage from "@/features/shop/pages/DashboardPage";
+import IncomingPage from "@/features/shop/pages/IncomingPage";
 import InventoryPage from "@/features/shop/pages/InventoryPage";
 import FarmersPage from "@/features/shop/pages/FarmersPage";
 import SalesPage from "@/features/shop/pages/SalesPage";
@@ -33,6 +34,20 @@ function AdminGuard() {
   }
 
   return <Outlet />;
+}
+
+// Smart Cashier direct redirect for /cashier or /casher
+function CashierDirectRedirect() {
+  const shopData = localStorage.getItem("shop");
+  const userData = localStorage.getItem("user");
+  const shop = shopData ? JSON.parse(shopData) : null;
+  const user = userData ? JSON.parse(userData) : null;
+  const shopId = shop?._id || user?.shopId;
+
+  if (shopId) {
+    return <Navigate to={`/cashier/${shopId}/incoming`} replace />;
+  }
+  return <Navigate to="/shop/incoming" replace />;
 }
 
 export const router = createBrowserRouter([
@@ -69,6 +84,10 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
+      },
+      {
+        path: "incoming",
+        element: <IncomingPage />,
       },
       {
         path: "inventory",
@@ -142,6 +161,14 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    path: "/cashier",
+    element: <CashierDirectRedirect />,
+  },
+  {
+    path: "/casher",
+    element: <CashierDirectRedirect />,
+  },
+  {
     path: "/cashier/auth/:shopId/:token",
     element: <CashierAuthPage />,
   },
@@ -151,9 +178,11 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        // Optional: Could redirect to /cashier/:shopId/sales but we can't easily use Navigate with params here in a simple way
-        // So let's render a component that redirects
-        element: <Navigate to="sales" replace />,
+        element: <Navigate to="incoming" replace />,
+      },
+      {
+        path: "incoming",
+        element: <IncomingPage />,
       },
       {
         path: "sales",

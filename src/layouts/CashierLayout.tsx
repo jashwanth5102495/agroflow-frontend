@@ -11,6 +11,7 @@ import {
   Sun,
   Moon,
   BookOpen,
+  ArrowDownToLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ import {
 
 const getCashierLinks = (shopId: string) => [
   { name: "Sales", href: `/cashier/${shopId}/sales`, icon: ShoppingCart },
+  { name: "Incoming", href: `/cashier/${shopId}/incoming`, icon: ArrowDownToLine },
   { name: "Farmers", href: `/cashier/${shopId}/farmers`, icon: Users },
   { name: "Inventory", href: `/cashier/${shopId}/inventory`, icon: Package },
   { name: "Credit Ledger", href: `/cashier/${shopId}/credit`, icon: BookOpen },

@@ -19,7 +19,8 @@ import {
   Moon,
   CreditCard,
   Lock,
-  ArrowRight
+  ArrowRight,
+  ArrowDownToLine
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import { API_BASE_URL } from "@/config/api";
 
 const shopLinks = [
   { name: "Dashboard", href: "/shop", icon: LayoutDashboard },
+  { name: "Incoming", href: "/shop/incoming", icon: ArrowDownToLine },
   { name: "Inventory", href: "/shop/inventory", icon: Package },
   { name: "Farmers", href: "/shop/farmers", icon: Users },
   { name: "Sales", href: "/shop/sales", icon: ShoppingCart },
