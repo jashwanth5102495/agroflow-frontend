@@ -33,7 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { API_BASE_URL } from "@/config/api";
+import { API_BASE_URL, isTokenExpired, isTokenExpiringSoon, refreshToken } from "@/config/api";
 
 const adminLinks = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -143,6 +143,23 @@ export default function DashboardLayout() {
     localStorage.removeItem("shop");
     navigate("/auth/login");
   };
+
+  // Proactive Session Keep-Alive & Auto-Renewal
+  useEffect(() => {
+    const keepSessionAlive = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      // If token is expired or expiring within 7 days, refresh it now
+      if (isTokenExpired(token) || isTokenExpiringSoon(token, 7 * 24 * 60)) {
+        await refreshToken();
+      }
+    };
+
+    keepSessionAlive();
+    const interval = setInterval(keepSessionAlive, 15 * 60 * 1000); // Check every 15 minutes
+    return () => clearInterval(interval);
+  }, []);
 
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>(() => {
     return currentShop?.subscriptionStatus || "ACTIVE";

@@ -27,7 +27,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { API_BASE_URL } from "@/config/api";
+import { API_BASE_URL, authFetch, getAuthHeaders } from "@/config/api";
 import BannerSlideshow from "@/components/BannerSlideshow";
 
 interface Farmer {
@@ -52,13 +52,6 @@ export default function FarmersPage() {
   const [newFarmerVillage, setNewFarmerVillage] = useState("");
   const [isAddingFarmer, setIsAddingFarmer] = useState(false);
 
-  const getHeaders = () => {
-    const token = localStorage.getItem("token");
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    return headers;
-  };
-
   // Farmer Details State
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedFarmer, setSelectedFarmer] = useState<Farmer | null>(null);
@@ -71,8 +64,8 @@ export default function FarmersPage() {
     setIsLoadingSales(true);
     setFarmerSales([]);
     try {
-      const res = await fetch(`${API_BASE_URL}/sales?farmerId=${farmer._id}`, { headers: getHeaders() });
-      const data = await res.json();
+      const res = await authFetch(`${API_BASE_URL}/sales?farmerId=${farmer._id}`, { headers: getAuthHeaders() });
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
         setFarmerSales(data.data || []);
       }
@@ -85,8 +78,8 @@ export default function FarmersPage() {
 
   const fetchFarmers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/farmers`, { headers: getHeaders() });
-      const data = await response.json();
+      const response = await authFetch(`${API_BASE_URL}/farmers`, { headers: getAuthHeaders() });
+      const data = await response.json().catch(() => ({}));
       if (response.ok && data.success) {
         setFarmers(data.data || []);
       }
@@ -108,20 +101,35 @@ export default function FarmersPage() {
 
   const handleAddFarmer = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const cleanName = newFarmerName.trim();
+    const cleanMobile = newFarmerMobile.trim();
+    const cleanVillage = newFarmerVillage.trim();
+
+    if (!cleanName || cleanName.length < 2) {
+      toast.error("Please enter a valid farmer name (at least 2 characters)");
+      return;
+    }
+
+    if (!cleanMobile || cleanMobile.length < 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
     setIsAddingFarmer(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/farmers`, {
+      const response = await authFetch(`${API_BASE_URL}/farmers`, {
         method: "POST",
-        headers: getHeaders(),
+        headers: getAuthHeaders(),
         body: JSON.stringify({
-          name: newFarmerName,
-          phone: newFarmerMobile,
-          village: newFarmerVillage,
+          name: cleanName,
+          phone: cleanMobile,
+          village: cleanVillage || undefined,
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (response.ok && data.success) {
         toast.success("New farmer added successfully");
         setIsAddOpen(false);
@@ -132,8 +140,8 @@ export default function FarmersPage() {
       } else {
         toast.error(data.message || "Failed to add farmer");
       }
-    } catch (err) {
-      toast.error("Cannot connect to server.");
+    } catch (err: any) {
+      toast.error(err?.message || "Cannot connect to server. Please try again.");
     } finally {
       setIsAddingFarmer(false);
     }
