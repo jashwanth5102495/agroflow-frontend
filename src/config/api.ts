@@ -5,6 +5,9 @@ export const API_BASE_URL = cleanUrl.endsWith("/api/v1")
   ? cleanUrl 
   : `${cleanUrl}/api/v1`;
 
+// Reference to original native window.fetch
+const originalFetch = typeof window !== "undefined" ? window.fetch.bind(window) : fetch;
+
 // Safe JWT payload parser in browser
 export function parseJwt(token: string | null): any {
   if (!token) return null;
@@ -59,7 +62,7 @@ export async function refreshToken(): Promise<string | null> {
 
   refreshPromise = (async () => {
     try {
-      const res = await window.fetch(`${API_BASE_URL}/auth/refresh`, {
+      const res = await originalFetch(`${API_BASE_URL}/auth/refresh`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -125,9 +128,13 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
 
   // If token is expired or expiring within 24 hours, attempt refresh first
   if (token && (isTokenExpired(token) || isTokenExpiringSoon(token, 24 * 60))) {
-    const refreshed = await refreshToken();
-    if (refreshed) {
-      token = refreshed;
+    try {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        token = refreshed;
+      }
+    } catch {
+      // Continue with current token
     }
   }
 
@@ -142,35 +149,41 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
     headers,
   };
 
-  const response = await window.fetch(input, newInit);
+  const response = await originalFetch(input, newInit);
 
   // Sliding session: check if backend returned a refreshed token in headers
-  const renewedToken = response.headers.get("x-refreshed-token");
-  if (renewedToken) {
-    localStorage.setItem("token", renewedToken);
+  try {
+    const renewedToken = response.headers.get("x-refreshed-token");
+    if (renewedToken) {
+      localStorage.setItem("token", renewedToken);
+    }
+  } catch {
+    // Ignore header reading error
   }
 
   // Handle 401 Unauthorized
   if (response.status === 401) {
-    // Clone response to inspect message
-    const clone = response.clone();
-    const data = await clone.json().catch(() => ({}));
-    const message = (data?.message || "").toLowerCase();
+    try {
+      const clone = response.clone();
+      const data = await clone.json().catch(() => ({}));
+      const message = (data?.message || "").toLowerCase();
 
-    // If it's a token expiration or unauthorized issue, try one refresh & retry
-    if (message.includes("token") || message.includes("expired") || message.includes("unauthorized") || message.includes("invalid")) {
-      const refreshedToken = await refreshToken();
-      if (refreshedToken) {
-        // Retry the original request with the new token
-        const retryHeaders = new Headers(init.headers || {});
-        retryHeaders.set("Authorization", `Bearer ${refreshedToken}`);
-        return window.fetch(input, {
-          ...init,
-          headers: retryHeaders,
-        });
-      } else {
-        handleSessionExpired();
+      // If it's a token expiration or unauthorized issue, try one refresh & retry
+      if (message.includes("token") || message.includes("expired") || message.includes("unauthorized") || message.includes("invalid")) {
+        const refreshedToken = await refreshToken();
+        if (refreshedToken) {
+          const retryHeaders = new Headers(headers);
+          retryHeaders.set("Authorization", `Bearer ${refreshedToken}`);
+          return originalFetch(input, {
+            ...init,
+            headers: retryHeaders,
+          });
+        } else {
+          handleSessionExpired();
+        }
       }
+    } catch {
+      // Ignore
     }
   }
 
@@ -180,14 +193,23 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
 // Global window.fetch interceptor for transparent session resilience across the entire app
 if (typeof window !== "undefined" && !(window as any).__AGROFLOW_FETCH_PATCHED__) {
   (window as any).__AGROFLOW_FETCH_PATCHED__ = true;
-  const originalFetch = window.fetch;
 
   window.fetch = async function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const urlString = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
-    
-    // Only intercept requests directed to our backend API endpoints
-    const isApiRequest = urlString.includes("/api/v1") || urlString.includes(API_BASE_URL);
-    const isRefreshCall = urlString.includes("/auth/refresh");
+    let urlString = "";
+    try {
+      if (typeof input === "string") {
+        urlString = input;
+      } else if (input instanceof URL) {
+        urlString = input.toString();
+      } else if (input && typeof (input as any).url === "string") {
+        urlString = (input as any).url;
+      }
+    } catch {
+      urlString = "";
+    }
+
+    const isApiRequest = urlString && (urlString.includes("/api/v1") || (API_BASE_URL && urlString.includes(API_BASE_URL)));
+    const isRefreshCall = urlString && urlString.includes("/auth/refresh");
 
     if (isApiRequest && !isRefreshCall) {
       return authFetch(input, init);

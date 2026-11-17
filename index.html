@@ -4,16 +4,41 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>AgriFlow - Smart Agro Retail Platform</title>
+
+    <!-- Chunk load error recovery: catches stale asset requests when a new version is deployed -->
+    <script>
+      window.addEventListener('vite:preloadError', function () {
+        window.location.reload();
+      });
+      window.addEventListener('error', function (e) {
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+          var src = e.target.src || e.target.href || '';
+          if (src.indexOf('/assets/') !== -1) {
+            var reloadKey = 'agriflow_chunk_reload_' + src;
+            if (!sessionStorage.getItem(reloadKey)) {
+              sessionStorage.setItem(reloadKey, 'true');
+              window.location.reload();
+            }
+          }
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <div id="google_translate_element" style="display: none;"></div>
     <script type="text/javascript">
       function googleTranslateElementInit() {
-        new google.translate.TranslateElement({pageLanguage: 'en', includedLanguages: 'en,kn', autoDisplay: false}, 'google_translate_element');
+        try {
+          if (window.google && window.google.translate && window.google.translate.TranslateElement) {
+            new window.google.translate.TranslateElement({pageLanguage: 'en', includedLanguages: 'en,kn', autoDisplay: false}, 'google_translate_element');
+          }
+        } catch (e) {
+          // Gracefully ignore translate init error
+        }
       }
     </script>
-    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+    <script type="text/javascript" async defer onerror="void 0;" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
