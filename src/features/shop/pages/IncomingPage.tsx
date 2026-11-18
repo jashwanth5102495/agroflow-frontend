@@ -27,8 +27,11 @@ import {
   FileText,
   Package,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Download
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { API_BASE_URL } from "@/config/api";
 import { toast } from "sonner";
 import {
@@ -300,6 +303,263 @@ export default function IncomingPage() {
         ...record,
         shop: JSON.parse(localStorage.getItem("shop") || "{}"),
       });
+    }
+  };
+
+  const handlePrintVoucher = (voucher: any) => {
+    if (!voucher) return;
+    const printWindow = window.open("", "_blank", "width=850,height=900");
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const items = voucher.items || [];
+    const rowsHtml = items.map((it: any, i: number) => {
+      const name = it.productName || it.name || it.productId?.name || "Product";
+      const unit = it.unit || "unit";
+      const qty = it.quantity || 0;
+      const price = Number(it.purchasePrice || 0).toFixed(2);
+      const total = Number(it.subtotal || qty * (it.purchasePrice || 0)).toFixed(2);
+      return `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #d1d5db; text-align: center;">${i + 1}</td>
+          <td style="padding: 8px; border: 1px solid #d1d5db; font-weight: 600;">${name}</td>
+          <td style="padding: 8px; border: 1px solid #d1d5db; text-align: center;">${unit}</td>
+          <td style="padding: 8px; border: 1px solid #d1d5db; text-align: center; font-weight: bold;">${qty}</td>
+          <td style="padding: 8px; border: 1px solid #d1d5db; text-align: right;">₹${price}</td>
+          <td style="padding: 8px; border: 1px solid #d1d5db; text-align: right; font-weight: bold;">₹${total}</td>
+        </tr>
+      `;
+    }).join("");
+
+    const subtotal = Number(voucher.subtotal || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+    const tax = Number(voucher.tax || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+    const grandTotal = Number(voucher.total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+    const dateStr = new Date(voucher.purchaseDate || voucher.createdAt || Date.now()).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Goods Receipt Note - ${voucher.invoiceNumber || voucher._id?.slice(-8)}</title>
+          <style>
+            @page { size: A4; margin: 12mm; }
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #111827; margin: 0; padding: 20px; font-size: 13px; }
+            .header { text-align: center; border-bottom: 2px solid #111827; padding-bottom: 12px; margin-bottom: 16px; }
+            .shop-title { font-size: 22px; font-weight: 800; text-transform: uppercase; margin: 0; }
+            .shop-sub { font-size: 12px; color: #4b5563; margin-top: 3px; }
+            .badge { display: inline-block; margin-top: 10px; background: #f3f4f6; border: 1px solid #9ca3af; padding: 4px 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; border-radius: 4px; text-transform: uppercase; }
+            .meta { display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding: 12px 0; margin-bottom: 16px; }
+            .meta-col { flex: 1; }
+            .meta-col.right { text-align: right; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th { background: #f9fafb; border: 1px solid #9ca3af; padding: 8px; font-weight: 700; text-align: left; }
+            .totals-box { margin-left: auto; width: 300px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; background: #fafafa; margin-bottom: 20px; }
+            .row { display: flex; justify-content: space-between; padding: 3px 0; }
+            .grand-total { font-size: 15px; font-weight: 800; border-top: 2px solid #111827; padding-top: 6px; margin-top: 6px; }
+            .notes { border: 1px solid #e5e7eb; background: #f9fafb; padding: 10px; border-radius: 6px; margin-bottom: 30px; }
+            .signatures { display: flex; justify-content: space-between; margin-top: 60px; padding: 0 20px; }
+            .sig-box { border-top: 1px solid #6b7280; width: 190px; text-align: center; padding-top: 6px; font-size: 12px; font-weight: 600; color: #374151; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="shop-title">${voucher.shop?.name || "AgroFlow Store"}</div>
+            <div class="shop-sub">${voucher.shop?.address || "Agricultural Supplies & Solutions"}</div>
+            <div class="shop-sub">Phone: ${voucher.shop?.phone || "N/A"}${voucher.shop?.gstNumber ? ` | GSTIN: ${voucher.shop.gstNumber}` : ""}</div>
+            <div class="badge">GOODS RECEIPT NOTE (INWARD VOUCHER)</div>
+          </div>
+          <div class="meta">
+            <div class="meta-col">
+              <div><span style="color: #6b7280;">Supplier / Company:</span> <b style="font-size: 14px;">${voucher.companyName}</b></div>
+              <div style="margin-top: 4px;"><span style="color: #6b7280;">Invoice / Challan No:</span> <b>${voucher.invoiceNumber || "—"}</b></div>
+            </div>
+            <div class="meta-col right">
+              <div><span style="color: #6b7280;">Date:</span> <b>${dateStr}</b></div>
+              <div style="margin-top: 4px;"><span style="color: #6b7280;">Voucher Ref:</span> #${voucher._id?.slice(-8).toUpperCase() || "NEW"}</div>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 35px; text-align: center;">#</th>
+                <th>Product Name</th>
+                <th style="width: 65px; text-align: center;">Unit</th>
+                <th style="width: 60px; text-align: center;">Qty</th>
+                <th style="width: 95px; text-align: right;">Cost (₹)</th>
+                <th style="width: 110px; text-align: right;">Total (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          <div class="totals-box">
+            <div class="row"><span>Material Subtotal:</span> <span>₹${subtotal}</span></div>
+            ${Number(voucher.gstRate) > 0 ? `<div class="row"><span>Input GST (${voucher.gstRate}%):</span> <span>₹${tax}</span></div>` : ""}
+            <div class="row grand-total"><span>Total Incoming Cost:</span> <span>₹${grandTotal}</span></div>
+          </div>
+          ${voucher.notes ? `<div class="notes"><b style="color: #374151;">Remarks / Memo:</b> <span style="color: #4b5563;">${voucher.notes}</span></div>` : ""}
+          <div class="signatures">
+            <div class="sig-box">Store Incharge Signature</div>
+            <div class="sig-box">Received By Signature</div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.focus();
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleDownloadPDF = (voucher: any) => {
+    if (!voucher) return;
+    try {
+      const doc = new jsPDF();
+      const shop = voucher.shop || JSON.parse(localStorage.getItem("shop") || "{}");
+      const dateStr = new Date(voucher.purchaseDate || voucher.createdAt || Date.now()).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+
+      // Header
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text(shop.name || "AGROFLOW STORE", 105, 18, { align: "center" });
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(shop.address || "Agricultural Supplies & Solutions", 105, 24, { align: "center" });
+      doc.text(`Phone: ${shop.phone || "N/A"}${shop.gstNumber ? ` | GSTIN: ${shop.gstNumber}` : ""}`, 105, 29, { align: "center" });
+
+      doc.setDrawColor(30, 41, 59);
+      doc.setLineWidth(0.5);
+      doc.line(14, 33, 196, 33);
+
+      // Title badge
+      doc.setFillColor(243, 244, 246);
+      doc.rect(50, 36, 110, 8, "F");
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("GOODS RECEIPT NOTE (INCOMING MATERIAL)", 105, 41.5, { align: "center" });
+
+      // Meta details
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("Supplier / Company:", 14, 52);
+      doc.setFont("helvetica", "bold");
+      doc.text(voucher.companyName || "N/A", 50, 52);
+
+      doc.setFont("helvetica", "normal");
+      doc.text("Invoice / Challan No:", 14, 58);
+      doc.setFont("helvetica", "bold");
+      doc.text(voucher.invoiceNumber || "—", 50, 58);
+
+      doc.setFont("helvetica", "normal");
+      doc.text("Date:", 140, 52);
+      doc.setFont("helvetica", "bold");
+      doc.text(dateStr, 165, 52);
+
+      doc.setFont("helvetica", "normal");
+      doc.text("Voucher Ref:", 140, 58);
+      doc.setFont("helvetica", "bold");
+      doc.text(`#${voucher._id?.slice(-8).toUpperCase() || "NEW"}`, 165, 58);
+
+      // Table
+      const tableBody = (voucher.items || []).map((it: any, i: number) => {
+        const name = it.productName || it.name || it.productId?.name || "Product";
+        const unit = it.unit || "unit";
+        const qty = it.quantity || 0;
+        const price = Number(it.purchasePrice || 0).toFixed(2);
+        const total = Number(it.subtotal || qty * (it.purchasePrice || 0)).toFixed(2);
+        return [i + 1, name, unit, qty, `₹${price}`, `₹${total}`];
+      });
+
+      autoTable(doc, {
+        head: [["#", "Product Name", "Unit", "Qty", "Cost (₹)", "Total (₹)"]],
+        body: tableBody,
+        startY: 64,
+        theme: "grid",
+        headStyles: { fillColor: [243, 244, 246], textColor: [17, 24, 39], fontStyle: "bold" },
+        styles: { fontSize: 8, cellPadding: 3 },
+        columnStyles: {
+          0: { halign: "center", cellWidth: 12 },
+          1: { cellWidth: 80 },
+          2: { halign: "center", cellWidth: 20 },
+          3: { halign: "center", cellWidth: 20 },
+          4: { halign: "right", cellWidth: 30 },
+          5: { halign: "right", cellWidth: 30 },
+        },
+      });
+
+      // Totals
+      const finalY = (doc as any).lastAutoTable?.finalY || 120;
+      const subtotal = Number(voucher.subtotal || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+      const tax = Number(voucher.tax || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+      const grandTotal = Number(voucher.total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Material Subtotal:  ₹${subtotal}`, 196, finalY + 8, { align: "right" });
+      if (voucher.gstRate > 0) {
+        doc.text(`Input GST (${voucher.gstRate}%):  ₹${tax}`, 196, finalY + 14, { align: "right" });
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      const totalY = voucher.gstRate > 0 ? finalY + 22 : finalY + 16;
+      doc.text(`Total Incoming Cost:  ₹${grandTotal}`, 196, totalY, { align: "right" });
+
+      // Notes
+      if (voucher.notes) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text("Remarks / Memo:", 14, finalY + 10);
+        doc.setFont("helvetica", "normal");
+        doc.text(voucher.notes, 14, finalY + 15, { maxWidth: 110 });
+      }
+
+      // Signatures
+      const sigY = Math.max(totalY + 30, 245);
+      doc.line(20, sigY, 70, sigY);
+      doc.line(140, sigY, 190, sigY);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("Store Incharge Signature", 45, sigY + 5, { align: "center" });
+      doc.text("Received By Signature", 165, sigY + 5, { align: "center" });
+
+      doc.save(`Incoming_Voucher_${voucher.invoiceNumber || voucher._id?.slice(-8) || "GRN"}.pdf`);
+      toast.success("Voucher PDF downloaded successfully!");
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      toast.error("Failed to generate PDF. Use Print Voucher instead.");
+    }
+  };
+
+  const handleDirectDownloadPDF = async (record: IncomingRecord) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/purchases/${record._id}`, { headers: getHeaders() });
+      const data = await res.json();
+      const fullVoucher = res.ok && data.success ? {
+        ...data.data.purchase,
+        items: data.data.items,
+        shop: JSON.parse(localStorage.getItem("shop") || "{}"),
+      } : {
+        ...record,
+        shop: JSON.parse(localStorage.getItem("shop") || "{}"),
+      };
+      handleDownloadPDF(fullVoucher);
+    } catch (e) {
+      handleDownloadPDF({ ...record, shop: JSON.parse(localStorage.getItem("shop") || "{}") });
     }
   };
 
@@ -701,15 +961,26 @@ export default function IncomingPage() {
                           {rec.notes || "-"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewVoucher(rec)}
-                            title="Print / View Inward Voucher"
-                            className="text-primary hover:bg-primary/10"
-                          >
-                            <Printer className="h-4 w-4 mr-1" /> Print
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewVoucher(rec)}
+                              title="Print / View Inward Voucher"
+                              className="text-primary hover:bg-primary/10"
+                            >
+                              <Printer className="h-4 w-4 mr-1" /> Print
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDirectDownloadPDF(rec)}
+                              title="Download PDF"
+                              className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -838,11 +1109,18 @@ export default function IncomingPage() {
             </div>
           )}
 
-          <DialogFooter className="print:hidden">
+          <DialogFooter className="print:hidden flex flex-row items-center justify-between sm:justify-end gap-2">
             <Button variant="outline" onClick={() => setSelectedVoucher(null)}>
               Close
             </Button>
-            <Button onClick={() => window.print()} className="bg-primary text-primary-foreground">
+            <Button
+              variant="outline"
+              onClick={() => handleDownloadPDF(selectedVoucher)}
+              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            >
+              <Download className="w-4 h-4 mr-2" /> Download PDF
+            </Button>
+            <Button onClick={() => handlePrintVoucher(selectedVoucher)} className="bg-primary text-primary-foreground">
               <Printer className="w-4 h-4 mr-2" /> Print Voucher
             </Button>
           </DialogFooter>

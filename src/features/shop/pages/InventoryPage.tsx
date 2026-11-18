@@ -53,6 +53,7 @@ interface InventoryItem {
     category?: string;
     sku?: string;
     unit?: string;
+    purchasePrice?: number;
     sellingPrice: number;
     minimumStock: number;
     status: string;
@@ -97,6 +98,13 @@ export default function InventoryPage() {
 
   const [restockValues, setRestockValues] = useState<Record<string, string>>({});
   const [restockingId, setRestockingId] = useState<string | null>(null);
+
+  // CSV Import State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [parsedProducts, setParsedProducts] = useState<any[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const handleRestock = async (productId: string, itemId: string) => {
     const qty = Number(restockValues[itemId]);
@@ -303,26 +311,27 @@ export default function InventoryPage() {
   const totalPages = pageSize === "ALL" ? 1 : Math.ceil(filteredInventory.length / pageSize) || 1;
 
   const handleAddProduct = async () => {
-    if (!newProduct.name || !newProduct.category || !newProduct.purchasePrice || !newProduct.sellingPrice) {
-      toast.error("Please fill in all required fields.");
+    if (!newProduct.name || !newProduct.name.trim()) {
+      toast.error("Please enter a product name.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // 1. Create Product
       const productPayload: any = {
         name: newProduct.name.trim(),
-        category: newProduct.category.trim(),
-        unit: newProduct.unit.trim(),
-        purchasePrice: Number(newProduct.purchasePrice),
-        sellingPrice: Number(newProduct.sellingPrice),
-        minimumStock: Number(newProduct.minimumStock),
+        category: newProduct.category?.trim() || "General",
+        unit: newProduct.unit?.trim() || "kg",
+        purchasePrice: Number(newProduct.purchasePrice) || 0,
+        sellingPrice: Number(newProduct.sellingPrice) || 0,
+        minimumStock: Number(newProduct.minimumStock) || 10,
+        initialStock: Number(newProduct.initialStock) || 0,
       };
-      if (newProduct.description) {
+      if (newProduct.description?.trim()) {
         productPayload.description = newProduct.description.trim();
       }
 
+      // Single atomic backend call to create product & initialize inventory
       const productRes = await authFetch(`${API_BASE_URL}/products`, {
         method: "POST",
         headers: getAuthHeaders(),
@@ -332,25 +341,6 @@ export default function InventoryPage() {
       const productData = await productRes.json().catch(() => ({}));
       if (!productRes.ok || !productData.success) {
         throw new Error(productData.message || "Failed to create product");
-      }
-
-      const productId = productData.data._id;
-
-      // 2. Add Initial Inventory
-      const invRes = await authFetch(`${API_BASE_URL}/inventory/adjust`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          productId,
-          quantityChange: Number(newProduct.initialStock) || 0,
-          type: "ADJUSTMENT",
-          reason: "Initial Stock",
-        }),
-      });
-
-      const invData = await invRes.json().catch(() => ({}));
-      if (!invRes.ok || !invData.success) {
-        throw new Error(invData.message || "Failed to add initial stock");
       }
 
       toast.success("Product added successfully!");
@@ -365,11 +355,228 @@ export default function InventoryPage() {
         initialStock: "0",
         description: "",
       });
-      fetchInventory();
+      await fetchInventory();
     } catch (err: any) {
       toast.error(err.message || "Something went wrong.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Export full/filtered inventory to CSV
+  const handleExportCSV = () => {
+    const exportItems = filteredInventory.length > 0 ? filteredInventory : inventory;
+    if (exportItems.length === 0) {
+      toast.error("No products available to export.");
+      return;
+    }
+
+    const headers = [
+      "Product Name",
+      "Category",
+      "SKU",
+      "Unit",
+      "Purchase Price",
+      "Selling Price",
+      "Current Stock",
+      "Minimum Stock",
+      "Status",
+      "Description",
+    ];
+
+    const csvRows = [headers.join(",")];
+
+    exportItems.forEach((item) => {
+      const p = item.productId || ({} as any);
+      const status = getStockStatus(item.quantity, p.minimumStock || 10);
+      const row = [
+        `"${(p.name || "").replace(/"/g, '""')}"`,
+        `"${(p.category || "").replace(/"/g, '""')}"`,
+        `"${(p.sku || "").replace(/"/g, '""')}"`,
+        `"${(p.unit || "kg").replace(/"/g, '""')}"`,
+        p.purchasePrice || 0,
+        p.sellingPrice || 0,
+        item.quantity || 0,
+        p.minimumStock || 10,
+        `"${status}"`,
+        `"${(p.description || "").replace(/"/g, '""')}"`,
+      ];
+      csvRows.push(row.join(","));
+    });
+
+    const blob = new Blob(["\uFEFF" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `AgroFlow_Inventory_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${exportItems.length} products to CSV!`);
+  };
+
+  // Download Sample CSV Template
+  const handleDownloadTemplate = () => {
+    const templateHeaders = [
+      "Name",
+      "Category",
+      "Unit",
+      "PurchasePrice",
+      "SellingPrice",
+      "Stock",
+      "MinimumStock",
+      "Description",
+    ];
+    const sampleRows = [
+      templateHeaders.join(","),
+      '"DAP Fertilizer","Fertilizers","bag",1250,1350,50,10,"High quality DAP 50kg bag"',
+      '"Neem Coated Urea","Fertilizers","bag",266,270,100,20,"IFFCO Neem Coated Urea 45kg"',
+      '"Chlorpyrifos 20% EC","Pesticides","L",380,450,25,5,"Insecticide 1 Litre bottle"',
+      '"NPK 19:19:19 1kg","Fertilizers","kg",110,140,40,10,"100% Water Soluble Fertilizer"',
+    ];
+
+    const blob = new Blob(["\uFEFF" + sampleRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "agroflow_product_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Sample CSV template downloaded!");
+  };
+
+  // Robust CSV parser
+  const parseCSV = (text: string) => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) {
+      throw new Error("CSV file must have a header row and at least one data row.");
+    }
+
+    const parseRow = (rowStr: string) => {
+      const result: string[] = [];
+      let insideQuotes = false;
+      let entry = "";
+      for (let i = 0; i < rowStr.length; i++) {
+        const char = rowStr[i];
+        if (char === '"') {
+          if (insideQuotes && rowStr[i + 1] === '"') {
+            entry += '"';
+            i++;
+          } else {
+            insideQuotes = !insideQuotes;
+          }
+        } else if (char === "," && !insideQuotes) {
+          result.push(entry.trim());
+          entry = "";
+        } else {
+          entry += char;
+        }
+      }
+      result.push(entry.trim());
+      return result;
+    };
+
+    const rawHeaders = parseRow(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+
+    const nameIdx = rawHeaders.findIndex((h) => h.includes("name") || h.includes("product") || h.includes("item"));
+    const catIdx = rawHeaders.findIndex((h) => h.includes("cat") || h.includes("type") || h.includes("group"));
+    const unitIdx = rawHeaders.findIndex((h) => h.includes("unit") || h.includes("uom") || h.includes("measure"));
+    const buyIdx = rawHeaders.findIndex((h) => h.includes("purchase") || h.includes("buy") || h.includes("cost"));
+    const sellIdx = rawHeaders.findIndex((h) => h.includes("sell") || h.includes("price") || h.includes("rate") || h.includes("mrp"));
+    const stockIdx = rawHeaders.findIndex((h) => h.includes("stock") || h.includes("qty") || h.includes("quantity"));
+    const minIdx = rawHeaders.findIndex((h) => h.includes("min") || h.includes("reorder") || h.includes("alert"));
+    const descIdx = rawHeaders.findIndex((h) => h.includes("desc") || h.includes("detail") || h.includes("note"));
+
+    if (nameIdx === -1) {
+      throw new Error("Could not find a 'Name' or 'Product Name' column in the CSV.");
+    }
+
+    const products: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = parseRow(lines[i]);
+      const name = row[nameIdx]?.trim();
+      if (!name || name.length < 2) continue;
+
+      const category = catIdx !== -1 && row[catIdx] ? row[catIdx].trim() : "General";
+      const unit = unitIdx !== -1 && row[unitIdx] ? row[unitIdx].trim() : "kg";
+      const purchasePrice = buyIdx !== -1 && !isNaN(Number(row[buyIdx])) ? Number(row[buyIdx]) : 0;
+      const sellingPrice = sellIdx !== -1 && !isNaN(Number(row[sellIdx])) ? Number(row[sellIdx]) : (purchasePrice > 0 ? purchasePrice : 0);
+      const stock = stockIdx !== -1 && !isNaN(Number(row[stockIdx])) ? Number(row[stockIdx]) : 0;
+      const minimumStock = minIdx !== -1 && !isNaN(Number(row[minIdx])) ? Number(row[minIdx]) : 10;
+      const description = descIdx !== -1 && row[descIdx] ? row[descIdx].trim() : "";
+
+      products.push({
+        name,
+        category,
+        unit,
+        purchasePrice,
+        sellingPrice,
+        stock,
+        minimumStock,
+        description,
+      });
+    }
+
+    return products;
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const products = parseCSV(text);
+        if (products.length === 0) {
+          setImportError("No valid products found in the file. Please check column headers.");
+          setParsedProducts([]);
+        } else {
+          setParsedProducts(products);
+        }
+      } catch (err: any) {
+        setImportError(err.message || "Failed to parse CSV file.");
+        setParsedProducts([]);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExecuteImport = async () => {
+    if (parsedProducts.length === 0) {
+      toast.error("No valid products to import.");
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const res = await authFetch(`${API_BASE_URL}/products/bulk`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ items: parsedProducts }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        toast.success(`Successfully imported ${data.data?.importedCount || parsedProducts.length} products!`);
+        setIsImportModalOpen(false);
+        setParsedProducts([]);
+        setImportFile(null);
+        await fetchInventory();
+      } else {
+        throw new Error(data.message || "Bulk import failed");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to import products");
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -400,15 +607,25 @@ export default function InventoryPage() {
             Manage your full product catalog, edit names, stock levels, and pricing.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="hidden sm:flex">
-            <Upload className="mr-2 h-4 w-4" /> Import
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsImportModalOpen(true)}
+            className="border-emerald-200 text-emerald-800 hover:bg-emerald-50 font-medium"
+          >
+            <Upload className="mr-1.5 h-4 w-4 text-emerald-600" /> Import
           </Button>
-          <Button variant="outline" size="sm" className="hidden sm:flex">
-            <Download className="mr-2 h-4 w-4" /> Export
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            className="border-blue-200 text-blue-800 hover:bg-blue-50 font-medium"
+          >
+            <Download className="mr-1.5 h-4 w-4 text-blue-600" /> Export
           </Button>
-          <Button size="sm" className="gradient-btn shadow-md" onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add Product
+          <Button size="sm" className="gradient-btn shadow-md font-medium" onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" /> Add Product
           </Button>
         </div>
       </div>
@@ -784,6 +1001,129 @@ export default function InventoryPage() {
             </Button>
             <Button onClick={handleAddProduct} disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : "Save Product"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Products from CSV Dialog */}
+      <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
+        <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Upload className="h-5 w-5 text-emerald-600" />
+              Import Products from CSV
+            </DialogTitle>
+            <DialogDescription>
+              Upload a CSV file containing your product catalog. Columns are automatically mapped.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Step 1: Template download */}
+            <div className="flex items-center justify-between p-3.5 bg-muted/40 rounded-lg border border-dashed text-xs sm:text-sm">
+              <div className="space-y-0.5">
+                <p className="font-semibold text-foreground">Need a starting template?</p>
+                <p className="text-muted-foreground text-xs">Download our standard CSV format with sample rows.</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={handleDownloadTemplate} className="gap-1.5 shrink-0">
+                <Download className="h-3.5 w-3.5" /> Sample Template
+              </Button>
+            </div>
+
+            {/* Step 2: File input */}
+            <div className="space-y-2">
+              <Label htmlFor="csv-file" className="text-sm font-semibold">Select CSV File</Label>
+              <div className="border-2 border-dashed rounded-lg p-5 text-center hover:bg-muted/30 transition-colors cursor-pointer relative">
+                <input
+                  id="csv-file"
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  onChange={handleFileUpload}
+                />
+                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm font-medium text-foreground">
+                  {importFile ? importFile.name : "Click or drag & drop CSV file here"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Supported format: .csv with columns Name, Category, Unit, PurchasePrice, SellingPrice, Stock
+                </p>
+              </div>
+            </div>
+
+            {importError && (
+              <div className="p-3 bg-destructive/10 text-destructive rounded-lg text-xs font-medium">
+                {importError}
+              </div>
+            )}
+
+            {/* Step 3: Parsed preview */}
+            {parsedProducts.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground">
+                    Parsed Preview
+                  </span>
+                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 font-semibold text-xs">
+                    {parsedProducts.length} Products Found
+                  </Badge>
+                </div>
+                
+                <div className="border rounded-md max-h-48 overflow-y-auto text-xs">
+                  <Table>
+                    <TableHeader className="bg-muted/50 sticky top-0">
+                      <TableRow>
+                        <TableHead className="py-1 px-2 text-xs">#</TableHead>
+                        <TableHead className="py-1 px-2 text-xs">Name</TableHead>
+                        <TableHead className="py-1 px-2 text-xs">Category</TableHead>
+                        <TableHead className="py-1 px-2 text-xs text-right">Cost</TableHead>
+                        <TableHead className="py-1 px-2 text-xs text-right">Sell</TableHead>
+                        <TableHead className="py-1 px-2 text-xs text-center">Stock</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {parsedProducts.slice(0, 5).map((p, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="py-1.5 px-2 font-mono text-muted-foreground">{idx + 1}</TableCell>
+                          <TableCell className="py-1.5 px-2 font-medium max-w-[150px] truncate">{p.name}</TableCell>
+                          <TableCell className="py-1.5 px-2 text-muted-foreground">{p.category}</TableCell>
+                          <TableCell className="py-1.5 px-2 text-right">₹{p.purchasePrice}</TableCell>
+                          <TableCell className="py-1.5 px-2 text-right font-medium">₹{p.sellingPrice}</TableCell>
+                          <TableCell className="py-1.5 px-2 text-center font-bold text-emerald-700">{p.stock}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                {parsedProducts.length > 5 && (
+                  <p className="text-[11px] text-muted-foreground text-center italic">
+                    Showing first 5 of {parsedProducts.length} products to be imported.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsImportModalOpen(false);
+                setParsedProducts([]);
+                setImportFile(null);
+                setImportError(null);
+              }}
+              disabled={isImporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExecuteImport}
+              disabled={isImporting || parsedProducts.length === 0}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+            >
+              {isImporting ? "Importing..." : `Import ${parsedProducts.length > 0 ? parsedProducts.length : ""} Products`}
             </Button>
           </DialogFooter>
         </DialogContent>

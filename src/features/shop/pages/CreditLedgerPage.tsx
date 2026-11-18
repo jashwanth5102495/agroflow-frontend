@@ -254,7 +254,7 @@ export default function CreditLedgerPage() {
                                 })}
                               </td>
                               <td className="p-3 text-right font-medium">
-                                {tx.saleDetails ? `₹${tx.saleDetails.totalAmount.toLocaleString("en-IN")}` : "—"}
+                                {tx.saleDetails ? `₹${(tx.saleDetails.total ?? tx.saleDetails.totalAmount ?? 0).toLocaleString("en-IN")}` : "—"}
                               </td>
                               <td className="p-3 text-right text-green-600 font-medium">
                                 {tx.saleDetails ? `₹${tx.saleDetails.downPayment.toLocaleString("en-IN")}` : "—"}

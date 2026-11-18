@@ -177,6 +177,95 @@ export default function SalesPage() {
     setIsCheckoutOpen(true);
   };
 
+  const handlePrintBill = (sale: any) => {
+    if (!sale) return;
+    const printWindow = window.open("", "_blank", "width=420,height=650");
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    const grandTotal = sale.total ?? sale.totalAmount ?? 0;
+    const downPayment = sale.downPayment ?? sale.amountPaid ?? 0;
+    const balance = grandTotal - downPayment;
+
+    const itemRows = (sale.cartItems || sale.items || []).map((item: any) => {
+      const name = item.name || item.productId?.name || "Item";
+      const qty = item.qty || item.quantity || 1;
+      const price = item.price || item.unitPrice || 0;
+      const total = item.total || item.subtotal || qty * price;
+      return `
+        <tr>
+          <td style="padding: 4px 0; word-break: break-word;">${name}</td>
+          <td style="padding: 4px 0; text-align: center;">${qty}</td>
+          <td style="padding: 4px 0; text-align: right;">${price}</td>
+          <td style="padding: 4px 0; text-align: right; font-weight: 600;">${total}</td>
+        </tr>
+      `;
+    }).join("");
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice - ${sale.invoiceNumber || "Bill"}</title>
+          <style>
+            @page { margin: 4mm; size: 80mm auto; }
+            body { font-family: monospace, -apple-system, sans-serif; font-size: 12px; color: #000; margin: 0; padding: 10px; width: 300px; }
+            .center { text-align: center; }
+            .bold { font-weight: bold; }
+            .dashed { border-top: 1px dashed #666; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            th { border-bottom: 1px dashed #666; padding: 4px 0; }
+            .row { display: flex; justify-content: space-between; padding: 2px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="center">
+            <h2 style="margin: 0; font-size: 16px;" class="bold">${sale.shop?.name || "AGRIFLOW SHOP"}</h2>
+            <div style="font-size: 10px; color: #444;">${sale.shop?.address || ""}</div>
+            <div style="font-size: 10px; color: #444;">Ph: ${sale.shop?.phone || ""}</div>
+          </div>
+          <div class="dashed"></div>
+          <div style="font-size: 10px;">
+            <div class="row"><span>Inv: <b>${sale.invoiceNumber || "—"}</b></span><span>${new Date(sale.createdAt || Date.now()).toLocaleDateString("en-IN")}</span></div>
+            <div class="row"><span>Cust: <b>${sale.customerName || sale.farmerId?.name || "Walk-in"}</b></span></div>
+          </div>
+          <div class="dashed"></div>
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: left;">Item</th>
+                <th style="text-align: center; width: 35px;">Qty</th>
+                <th style="text-align: right; width: 45px;">Price</th>
+                <th style="text-align: right; width: 50px;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemRows}
+            </tbody>
+          </table>
+          <div class="dashed"></div>
+          <div class="row bold" style="font-size: 13px;"><span>Grand Total:</span><span>₹${grandTotal.toLocaleString("en-IN")}</span></div>
+          <div class="row"><span>Paid (${sale.paymentMethod || "CASH"}):</span><span>₹${Number(downPayment).toLocaleString("en-IN")}</span></div>
+          ${sale.paymentMethod === "CREDIT" ? `<div class="row bold"><span>Balance (Credit):</span><span>₹${balance.toLocaleString("en-IN")}</span></div>` : ""}
+          <div class="dashed"></div>
+          <div class="center" style="margin-top: 10px;">
+            <div class="bold" style="font-size: 12px; font-style: italic;">Thanks for visiting! See you again!</div>
+            <div style="font-size: 9px; color: #666; margin-top: 4px;">Software by BluNet IT Services</div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.focus();
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     if (selectedFarmer === "walkin" && paymentMethod === "CREDIT") {
@@ -714,7 +803,7 @@ export default function SalesPage() {
                       <TableCell className="font-medium">{sale.invoiceNumber || sale._id.slice(-6).toUpperCase()}</TableCell>
                       <TableCell>{new Date(sale.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell>{sale.customerName || sale.farmerId?.name || "Walk-in"}</TableCell>
-                      <TableCell>₹{sale.totalAmount}</TableCell>
+                      <TableCell className="font-semibold text-foreground">₹{(sale.total ?? sale.totalAmount ?? 0).toLocaleString("en-IN")}</TableCell>
                       <TableCell>
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                           sale.paymentMethod === 'CASH' ? 'bg-success/10 text-success' :
@@ -785,16 +874,16 @@ export default function SalesPage() {
               <div className="border-t border-dashed border-gray-400 pt-2 mt-2 space-y-1 text-right">
                 <div className="flex justify-between font-bold text-base">
                   <span>Grand Total:</span>
-                  <span>₹{completedSale.totalAmount}</span>
+                  <span>₹{(completedSale.total ?? completedSale.totalAmount ?? 0).toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Paid ({completedSale.paymentMethod}):</span>
-                  <span>₹{completedSale.downPayment}</span>
+                  <span>₹{(completedSale.downPayment ?? completedSale.amountPaid ?? 0).toLocaleString("en-IN")}</span>
                 </div>
                 {completedSale.paymentMethod === 'CREDIT' && (
                   <div className="flex justify-between font-semibold">
                     <span>Balance (Credit):</span>
-                    <span>₹{completedSale.totalAmount - (Number(completedSale.downPayment) || 0)}</span>
+                    <span>₹{((completedSale.total ?? completedSale.totalAmount ?? 0) - (Number(completedSale.downPayment ?? completedSale.amountPaid) || 0)).toLocaleString("en-IN")}</span>
                   </div>
                 )}
               </div>
@@ -808,7 +897,7 @@ export default function SalesPage() {
           
           <DialogFooter className="print:hidden">
             <Button variant="outline" onClick={() => setCompletedSale(null)}>Close</Button>
-            <Button onClick={() => window.print()}><ReceiptText className="w-4 h-4 mr-2" /> Print Bill</Button>
+            <Button onClick={() => handlePrintBill(completedSale)}><ReceiptText className="w-4 h-4 mr-2" /> Print Bill</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
