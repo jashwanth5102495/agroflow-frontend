@@ -444,10 +444,10 @@ export default function SalesPage() {
       </div>
 
       <TabsContent value="pos" className="flex-1 mt-0">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-          <div className="lg:col-span-2 space-y-4 flex flex-col">
-          <Card className="flex-1 flex flex-col">
-            <CardHeader className="pb-3 border-b">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="lg:col-span-2 flex flex-col h-full">
+          <Card className="flex-1 flex flex-col h-full border shadow-sm">
+            <CardHeader className="pb-3 border-b shrink-0">
               <div className="flex justify-between items-center">
                 <CardTitle>Products</CardTitle>
                 <div className="relative w-64">
@@ -461,7 +461,7 @@ export default function SalesPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 p-4 grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto max-h-[500px]">
+            <CardContent className="flex-1 p-4 grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto content-start auto-rows-max min-h-[520px]">
               {filteredProducts.length === 0 ? (
                 <div className="col-span-full text-center py-8 text-muted-foreground">
                   {searchTerm ? "No products match your search." : "No products available. Add products in Inventory first."}
@@ -513,9 +513,9 @@ export default function SalesPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-1">
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-3 border-b bg-muted/20">
+        <div className="lg:col-span-1 flex flex-col h-full">
+          <Card className="flex-1 flex flex-col h-full border shadow-sm">
+            <CardHeader className="pb-3 border-b bg-muted/20 shrink-0">
               <CardTitle>Current Sale</CardTitle>
               <div className="mt-4 space-y-2">
                 <Label>Select Farmer</Label>
@@ -569,7 +569,7 @@ export default function SalesPage() {
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="flex flex-col border-t bg-muted/10 pt-4 gap-4">
+            <CardFooter className="flex flex-col border-t bg-muted/10 pt-4 gap-4 shrink-0">
               <div className="w-full space-y-1">
                 <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2">
                   <span>Total</span>
