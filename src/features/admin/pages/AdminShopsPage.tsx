@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, RefreshCw, Store, Trash2, CreditCard, CloudDownload, CloudUpload, PackageCheck } from "lucide-react";
+import { Search, RefreshCw, Store, Trash2, CreditCard, CloudDownload, CloudUpload, PackageCheck, KeyRound, Eye, EyeOff } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -65,6 +65,93 @@ export default function AdminShopsPage() {
   const [dataRequests, setDataRequests] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+
+  // Change Account Password states
+  const [shopToChangePassword, setShopToChangePassword] = useState<ShopData | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // Change Admin Password states
+  const [isAdminPasswordOpen, setIsAdminPasswordOpen] = useState(false);
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [isUpdatingAdminPassword, setIsUpdatingAdminPassword] = useState(false);
+
+  const handleUpdateAccountPassword = async () => {
+    if (!shopToChangePassword) return;
+    if (!newPassword || newPassword.trim().length < 4) {
+      toast.error("Password must be at least 4 characters long");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/shops/${shopToChangePassword._id}/password`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ password: newPassword.trim() }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success(`Password for ${shopToChangePassword.name} updated successfully!`);
+        setShopToChangePassword(null);
+        setNewPassword("");
+      } else {
+        toast.error(data.message || "Failed to update password");
+      }
+    } catch (err) {
+      toast.error("Network error while updating password");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleUpdateAdminPassword = async () => {
+    if (!newAdminPassword || newAdminPassword.trim().length < 4) {
+      toast.error("Admin password must be at least 4 characters long");
+      return;
+    }
+
+    setIsUpdatingAdminPassword(true);
+    try {
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/password`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ password: newAdminPassword.trim() }),
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        toast.success("Master Admin password updated successfully!");
+        setIsAdminPasswordOpen(false);
+        setNewAdminPassword("");
+      } else {
+        toast.error(data.message || "Failed to update admin password");
+      }
+    } catch (err) {
+      toast.error("Network error while updating admin password");
+    } finally {
+      setIsUpdatingAdminPassword(false);
+    }
+  };
 
   const fetchShops = async () => {
     setIsLoading(true);
@@ -286,6 +373,19 @@ export default function AdminShopsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setIsAdminPasswordOpen(true);
+              setNewAdminPassword("");
+              setShowAdminPassword(false);
+            }}
+            className="text-foreground border-input hover:bg-accent"
+          >
+            <KeyRound className="mr-2 h-4 w-4 text-amber-600" />
+            Admin Password
+          </Button>
+          <Button
             variant="default"
             size="sm"
             onClick={handleSeedSSBProducts}
@@ -393,14 +493,29 @@ export default function AdminShopsPage() {
                           setSubPrice((shop.subscriptionPrice || 1500).toString());
                           setSubEnforced(!!shop.isSubscriptionEnforced);
                         }}
+                        title="Manage Subscription"
                       >
                         <CreditCard className="h-4 w-4 text-primary" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => {
+                          setShopToChangePassword(shop);
+                          setNewPassword("");
+                          setShowPassword(false);
+                        }}
+                        title="Change Account Password"
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => setShopToDelete(shop)}
+                        title="Delete Shop"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -532,6 +647,147 @@ export default function AdminShopsPage() {
             <Button variant="outline" onClick={() => setShopToManageSub(null)} disabled={isUpdatingSub}>Cancel</Button>
             <Button onClick={handleUpdateSubscription} disabled={isUpdatingSub}>
               {isUpdatingSub ? "Updating..." : "Save Settings"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Account Password Dialog */}
+      <Dialog open={!!shopToChangePassword} onOpenChange={(open) => !open && setShopToChangePassword(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <KeyRound className="h-5 w-5 text-amber-600" />
+              Change Account Password
+            </DialogTitle>
+            <DialogDescription>
+              Set a new login password for this shop account.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="bg-muted/50 p-3 rounded-lg border text-sm space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Shop Name:</span>
+                <span className="font-semibold text-foreground">{shopToChangePassword?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Owner Name:</span>
+                <span className="font-medium text-foreground">{shopToChangePassword?.ownerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Login Phone:</span>
+                <span className="font-mono font-semibold text-primary">{shopToChangePassword?.phone}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="account-new-password">New Password</Label>
+              <div className="relative">
+                <Input
+                  id="account-new-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter new password (min. 4 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-10"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The user will use this new password along with their phone number (<span className="font-mono font-medium text-foreground">{shopToChangePassword?.phone}</span>) to log in.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShopToChangePassword(null)}
+              disabled={isUpdatingPassword}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateAccountPassword}
+              disabled={isUpdatingPassword || !newPassword.trim()}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-sm"
+            >
+              {isUpdatingPassword ? "Updating..." : "Update Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Admin Password Dialog */}
+      <Dialog open={isAdminPasswordOpen} onOpenChange={(open) => !open && setIsAdminPasswordOpen(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <KeyRound className="h-5 w-5 text-amber-600" />
+              Change Master Admin Password
+            </DialogTitle>
+            <DialogDescription>
+              Update the password for platform administrator access.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-3">
+            <div className="bg-muted/50 p-3 rounded-lg border text-sm space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Admin ID / Phone:</span>
+                <span className="font-mono font-semibold text-primary">admin@agroflow.com / 9999999999</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Role:</span>
+                <span className="font-semibold text-emerald-600">MASTER ADMIN</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="admin-new-password">New Admin Password</Label>
+              <div className="relative">
+                <Input
+                  id="admin-new-password"
+                  type={showAdminPassword ? "text" : "password"}
+                  placeholder="Enter new admin password (min. 4 characters)"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  className="pr-10"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword(!showAdminPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setIsAdminPasswordOpen(false)}
+              disabled={isUpdatingAdminPassword}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateAdminPassword}
+              disabled={isUpdatingAdminPassword || !newAdminPassword.trim()}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-sm"
+            >
+              {isUpdatingAdminPassword ? "Updating..." : "Update Admin Password"}
             </Button>
           </DialogFooter>
         </DialogContent>
