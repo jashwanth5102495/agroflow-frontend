@@ -435,107 +435,143 @@ export default function IncomingPage() {
       // Header
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
+      doc.setTextColor(17, 24, 39);
       doc.text(shop.name || "AGROFLOW STORE", 105, 18, { align: "center" });
 
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
+      doc.setTextColor(75, 85, 99);
       doc.text(shop.address || "Agricultural Supplies & Solutions", 105, 24, { align: "center" });
       doc.text(`Phone: ${shop.phone || "N/A"}${shop.gstNumber ? ` | GSTIN: ${shop.gstNumber}` : ""}`, 105, 29, { align: "center" });
 
-      doc.setDrawColor(30, 41, 59);
+      doc.setDrawColor(209, 213, 219);
       doc.setLineWidth(0.5);
       doc.line(14, 33, 196, 33);
 
       // Title badge
       doc.setFillColor(243, 244, 246);
-      doc.rect(50, 36, 110, 8, "F");
-      doc.setFontSize(11);
+      doc.roundedRect(45, 36, 120, 8, 2, 2, "F");
+      doc.setFontSize(10.5);
       doc.setFont("helvetica", "bold");
+      doc.setTextColor(17, 24, 39);
       doc.text("GOODS RECEIPT NOTE (INCOMING MATERIAL)", 105, 41.5, { align: "center" });
 
       // Meta details
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
+      doc.setTextColor(107, 114, 128);
       doc.text("Supplier / Company:", 14, 52);
       doc.setFont("helvetica", "bold");
+      doc.setTextColor(17, 24, 39);
       doc.text(voucher.companyName || "N/A", 50, 52);
 
       doc.setFont("helvetica", "normal");
+      doc.setTextColor(107, 114, 128);
       doc.text("Invoice / Challan No:", 14, 58);
       doc.setFont("helvetica", "bold");
+      doc.setTextColor(17, 24, 39);
       doc.text(voucher.invoiceNumber || "—", 50, 58);
 
       doc.setFont("helvetica", "normal");
-      doc.text("Date:", 140, 52);
+      doc.setTextColor(107, 114, 128);
+      doc.text("Date:", 135, 52);
       doc.setFont("helvetica", "bold");
-      doc.text(dateStr, 165, 52);
+      doc.setTextColor(17, 24, 39);
+      doc.text(dateStr, 160, 52);
 
       doc.setFont("helvetica", "normal");
-      doc.text("Voucher Ref:", 140, 58);
+      doc.setTextColor(107, 114, 128);
+      doc.text("Voucher Ref:", 135, 58);
       doc.setFont("helvetica", "bold");
-      doc.text(`#${voucher._id?.slice(-8).toUpperCase() || "NEW"}`, 165, 58);
+      doc.setTextColor(17, 24, 39);
+      doc.text(`#${voucher._id?.slice(-8).toUpperCase() || "NEW"}`, 160, 58);
 
-      // Table
+      // Table rows
       const tableBody = (voucher.items || []).map((it: any, i: number) => {
         const name = it.productName || it.name || it.productId?.name || "Product";
         const unit = it.unit || "unit";
         const qty = it.quantity || 0;
         const price = Number(it.purchasePrice || 0).toFixed(2);
         const total = Number(it.subtotal || qty * (it.purchasePrice || 0)).toFixed(2);
-        return [i + 1, name, unit, qty, `₹${price}`, `₹${total}`];
+        return [i + 1, name, unit, qty, price, total];
       });
 
-      autoTable(doc, {
-        head: [["#", "Product Name", "Unit", "Qty", "Cost (₹)", "Total (₹)"]],
-        body: tableBody,
-        startY: 64,
-        theme: "grid",
-        headStyles: { fillColor: [243, 244, 246], textColor: [17, 24, 39], fontStyle: "bold" },
-        styles: { fontSize: 8, cellPadding: 3 },
-        columnStyles: {
-          0: { halign: "center", cellWidth: 12 },
-          1: { cellWidth: 80 },
-          2: { halign: "center", cellWidth: 20 },
-          3: { halign: "center", cellWidth: 20 },
-          4: { halign: "right", cellWidth: 30 },
-          5: { halign: "right", cellWidth: 30 },
-        },
-      });
-
-      // Totals
-      const finalY = (doc as any).lastAutoTable?.finalY || 120;
       const subtotal = Number(voucher.subtotal || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
       const tax = Number(voucher.tax || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
       const grandTotal = Number(voucher.total || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 });
 
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Material Subtotal:  ₹${subtotal}`, 196, finalY + 8, { align: "right" });
-      if (voucher.gstRate > 0) {
-        doc.text(`Input GST (${voucher.gstRate}%):  ₹${tax}`, 196, finalY + 14, { align: "right" });
-      }
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      const totalY = voucher.gstRate > 0 ? finalY + 22 : finalY + 16;
-      doc.text(`Total Incoming Cost:  ₹${grandTotal}`, 196, totalY, { align: "right" });
+      const footRows: any[] = [
+        [
+          { content: "Material Subtotal:", colSpan: 5, styles: { halign: "right", fontStyle: "bold", textColor: [55, 65, 81] } },
+          { content: `Rs. ${subtotal}`, styles: { halign: "right", fontStyle: "bold", textColor: [17, 24, 39] } }
+        ]
+      ];
 
-      // Notes
+      if (voucher.gstRate > 0) {
+        footRows.push([
+          { content: `Input GST (${voucher.gstRate}%):`, colSpan: 5, styles: { halign: "right", textColor: [75, 85, 99] } },
+          { content: `Rs. ${tax}`, styles: { halign: "right", textColor: [75, 85, 99] } }
+        ]);
+      }
+
+      footRows.push([
+        { content: "Total Incoming Cost:", colSpan: 5, styles: { halign: "right", fontStyle: "bold", fontSize: 9.5, textColor: [15, 23, 42], fillColor: [241, 245, 249] } },
+        { content: `Rs. ${grandTotal}`, styles: { halign: "right", fontStyle: "bold", fontSize: 9.5, textColor: [15, 23, 42], fillColor: [241, 245, 249] } }
+      ]);
+
+      autoTable(doc, {
+        head: [["#", "Product Name", "Unit", "Qty", "Cost (Rs.)", "Total (Rs.)"]],
+        body: tableBody,
+        foot: footRows,
+        startY: 64,
+        margin: { left: 14, right: 14 },
+        theme: "grid",
+        headStyles: { fillColor: [243, 244, 246], textColor: [17, 24, 39], fontStyle: "bold", fontSize: 8.5 },
+        footStyles: { fillColor: [255, 255, 255], textColor: [17, 24, 39] },
+        styles: { fontSize: 8.5, cellPadding: 3.5, lineColor: [229, 231, 235], lineWidth: 0.2 },
+        columnStyles: {
+          0: { halign: "center", cellWidth: 10 },
+          1: { cellWidth: 84 },
+          2: { halign: "center", cellWidth: 20 },
+          3: { halign: "center", cellWidth: 16 },
+          4: { halign: "right", cellWidth: 26 },
+          5: { halign: "right", cellWidth: 26 },
+        },
+      });
+
+      const finalY = (doc as any).lastAutoTable?.finalY || 120;
+
+      // Notes / Remarks Box
+      let nextY = finalY + 6;
       if (voucher.notes) {
+        doc.setFillColor(249, 250, 251);
+        doc.setDrawColor(229, 231, 235);
+        doc.roundedRect(14, nextY, 182, 14, 2, 2, "FD");
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
-        doc.text("Remarks / Memo:", 14, finalY + 10);
+        doc.setTextColor(55, 65, 81);
+        doc.text("Remarks / Memo:", 18, nextY + 5);
         doc.setFont("helvetica", "normal");
-        doc.text(voucher.notes, 14, finalY + 15, { maxWidth: 110 });
+        doc.setTextColor(75, 85, 99);
+        doc.text(voucher.notes, 18, nextY + 10, { maxWidth: 174 });
+        nextY += 18;
       }
 
       // Signatures
-      const sigY = Math.max(totalY + 30, 245);
-      doc.line(20, sigY, 70, sigY);
-      doc.line(140, sigY, 190, sigY);
-      doc.setFontSize(8);
+      let sigY = Math.max(nextY + 16, 245);
+      if (sigY > 265) {
+        doc.addPage();
+        sigY = 50;
+      }
+      doc.setDrawColor(156, 163, 175);
+      doc.setLineWidth(0.5);
+      doc.line(20, sigY, 75, sigY);
+      doc.line(135, sigY, 190, sigY);
       doc.setFont("helvetica", "normal");
-      doc.text("Store Incharge Signature", 45, sigY + 5, { align: "center" });
-      doc.text("Received By Signature", 165, sigY + 5, { align: "center" });
+      doc.setFontSize(8);
+      doc.setTextColor(75, 85, 99);
+      doc.text("Store Incharge Signature", 47.5, sigY + 5, { align: "center" });
+      doc.text("Received By Signature", 162.5, sigY + 5, { align: "center" });
 
       doc.save(`Incoming_Voucher_${voucher.invoiceNumber || voucher._id?.slice(-8) || "GRN"}.pdf`);
       toast.success("Voucher PDF downloaded successfully!");
