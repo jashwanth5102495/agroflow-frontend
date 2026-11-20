@@ -470,12 +470,12 @@ export default function SalesPage() {
                 filteredProducts.map((product) => (
                   <div
                     key={product._id}
-                    className="border rounded-lg p-3 hover:border-primary hover:shadow-sm cursor-pointer transition-all bg-card flex flex-col justify-between h-28 relative group"
+                    className="border rounded-lg p-3 hover:border-primary hover:shadow-sm cursor-pointer transition-all bg-card flex flex-col justify-between min-h-[140px] relative group"
                     onClick={() => addToCart(product)}
                   >
                     <div>
                       <div className="flex justify-between items-start">
-                        <h4 className="font-medium text-sm line-clamp-2 pr-6">{product.name}</h4>
+                        <h4 className="font-medium text-sm line-clamp-2 pr-6 leading-tight">{product.name}</h4>
                         {product.description && (
                           <div 
                             className="absolute top-2 right-2 text-muted-foreground hover:text-primary z-10"
@@ -488,17 +488,19 @@ export default function SalesPage() {
                           </div>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">{product.category || ""}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{product.category || ""}</p>
                     </div>
-                    <div className="flex justify-between items-center mt-2">
+                    <div className="flex justify-between items-end mt-2 pt-1 border-t border-muted/40">
                       <div>
-                        <span className="font-semibold text-primary">₹{product.sellingPrice}</span>
-                        <div className="text-xs text-muted-foreground mt-0.5">Stock: {product.stock || 0}</div>
+                        <span className="font-semibold text-primary text-base">₹{product.sellingPrice}</span>
+                        <div className={`text-xs mt-0.5 font-medium ${(product.stock || 0) <= 0 ? "text-destructive" : (product.stock || 0) <= 10 ? "text-amber-600" : "text-muted-foreground"}`}>
+                          Stock: {product.stock || 0}
+                        </div>
                       </div>
                       <Button 
                         size="icon" 
                         variant="ghost" 
-                        className="h-6 w-6 rounded-full bg-primary/10 hover:bg-primary hover:text-white"
+                        className="h-7 w-7 rounded-full bg-primary/10 hover:bg-primary hover:text-white"
                         disabled={(product.stock || 0) <= 0}
                       >
                         <Plus className="h-4 w-4" />

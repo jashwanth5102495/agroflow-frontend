@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -94,6 +95,20 @@ export default function IncomingPage() {
 
   // Print & View Voucher Modal
   const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
+
+  // Quick Add New Product Modal State
+  const [isNewProductModalOpen, setIsNewProductModalOpen] = useState(false);
+  const [targetItemIndex, setTargetItemIndex] = useState<number | null>(null);
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const [newProductForm, setNewProductForm] = useState({
+    name: "",
+    category: "General",
+    unit: "kg",
+    purchasePrice: "",
+    sellingPrice: "",
+    minimumStock: "10",
+    description: "",
+  });
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
@@ -208,6 +223,99 @@ export default function IncomingPage() {
     setGstRate("18");
     setNotes("");
     setItems([{ productId: "", name: "", packSize: "", unit: "pcs", quantity: "", purchasePrice: "", subtotal: 0 }]);
+  };
+
+  // Handle creating a new product on the fly from the incoming form
+  const handleCreateProductFromIncoming = async () => {
+    if (!newProductForm.name.trim()) {
+      toast.error("Please enter a product name.");
+      return;
+    }
+
+    setIsCreatingProduct(true);
+    try {
+      const payload = {
+        name: newProductForm.name.trim(),
+        category: newProductForm.category.trim() || "General",
+        unit: newProductForm.unit.trim() || "kg",
+        purchasePrice: Number(newProductForm.purchasePrice) || 0,
+        sellingPrice: Number(newProductForm.sellingPrice) || (Number(newProductForm.purchasePrice) || 0),
+        minimumStock: Number(newProductForm.minimumStock) || 10,
+        initialStock: 0,
+        description: newProductForm.description.trim() || undefined,
+      };
+
+      const res = await fetch(`${API_BASE_URL}/products`, {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to create product");
+      }
+
+      const createdProd = data.data;
+      const formattedProd = {
+        _id: createdProd._id,
+        name: createdProd.name,
+        unit: createdProd.unit || "kg",
+        category: createdProd.category || "General",
+        sellingPrice: createdProd.sellingPrice || 0,
+        purchasePrice: createdProd.purchasePrice || 0,
+      };
+
+      // Add to available products dropdown
+      setAvailableProducts((prev) => [formattedProd, ...prev]);
+
+      const buyPrice = formattedProd.purchasePrice || (newProductForm.purchasePrice ? Number(newProductForm.purchasePrice) : "");
+
+      // If a specific row triggered this, populate that row
+      if (targetItemIndex !== null && items[targetItemIndex] !== undefined) {
+        const updated = [...items];
+        updated[targetItemIndex] = {
+          ...updated[targetItemIndex],
+          productId: formattedProd._id,
+          name: formattedProd.name,
+          unit: formattedProd.unit,
+          purchasePrice: buyPrice,
+          subtotal: (Number(updated[targetItemIndex].quantity) || 0) * (Number(buyPrice) || 0),
+        };
+        setItems(updated);
+      } else {
+        // Append as a new row
+        setItems((prev) => [
+          ...prev,
+          {
+            productId: formattedProd._id,
+            name: formattedProd.name,
+            packSize: "",
+            unit: formattedProd.unit,
+            quantity: "",
+            purchasePrice: buyPrice,
+            subtotal: 0,
+          },
+        ]);
+      }
+
+      toast.success(`Product "${formattedProd.name}" created and added to incoming list!`);
+      setIsNewProductModalOpen(false);
+      setNewProductForm({
+        name: "",
+        category: "General",
+        unit: "kg",
+        purchasePrice: "",
+        sellingPrice: "",
+        minimumStock: "10",
+        description: "",
+      });
+      setTargetItemIndex(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create product.");
+    } finally {
+      setIsCreatingProduct(false);
+    }
   };
 
   // Submit Incoming Record
@@ -714,17 +822,34 @@ export default function IncomingPage() {
 
               {/* Line Items Table */}
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <Label className="text-base font-semibold">Incoming Products Line Items</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addItemRow}
-                    className="text-primary border-primary/30 hover:bg-primary/5"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add Another Product
-                  </Button>
+                <div className="flex flex-wrap justify-between items-center gap-2">
+                  <div>
+                    <Label className="text-base font-semibold">Incoming Products Line Items</Label>
+                    <p className="text-xs text-muted-foreground">Select products from your catalog or create a new product directly.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setTargetItemIndex(null);
+                        setIsNewProductModalOpen(true);
+                      }}
+                      className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-medium"
+                    >
+                      <Plus className="h-4 w-4 mr-1 text-emerald-600" /> New Product
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addItemRow}
+                      className="text-primary border-primary/30 hover:bg-primary/5 font-medium"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Row
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="border rounded-lg overflow-x-auto bg-card">
@@ -744,21 +869,51 @@ export default function IncomingPage() {
                         <TableRow key={index} className="hover:bg-muted/20">
                           {/* Product Selection */}
                           <TableCell>
-                            <Select
-                              value={item.productId}
-                              onValueChange={(val) => handleProductSelect(index, val)}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Search or select product..." />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-64">
-                                {availableProducts.map((p) => (
-                                  <SelectItem key={p._id} value={p._id}>
-                                    {p.name} {p.category ? `(${p.category})` : ""}
+                            <div className="flex items-center gap-1.5">
+                              <Select
+                                value={item.productId}
+                                onValueChange={(val) => {
+                                  if (val === "__NEW_PRODUCT__") {
+                                    setTargetItemIndex(index);
+                                    setIsNewProductModalOpen(true);
+                                  } else {
+                                    handleProductSelect(index, val);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Search or select product..." />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-64">
+                                  <SelectItem
+                                    value="__NEW_PRODUCT__"
+                                    className="text-emerald-700 font-semibold border-b bg-emerald-50/60 hover:bg-emerald-100/60 cursor-pointer"
+                                  >
+                                    <span className="flex items-center gap-1.5 text-emerald-700 font-medium">
+                                      <Plus className="h-3.5 w-3.5 text-emerald-600" /> + Add New Product to Catalog
+                                    </span>
                                   </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                                  {availableProducts.map((p) => (
+                                    <SelectItem key={p._id} value={p._id}>
+                                      {p.name} {p.category ? `(${p.category})` : ""}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-9 w-9 shrink-0 text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
+                                title="Create new product for this row"
+                                onClick={() => {
+                                  setTargetItemIndex(index);
+                                  setIsNewProductModalOpen(true);
+                                }}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
 
                           {/* Unit */}
@@ -1158,6 +1313,125 @@ export default function IncomingPage() {
             </Button>
             <Button onClick={() => handlePrintVoucher(selectedVoucher)} className="bg-primary text-primary-foreground">
               <Printer className="w-4 h-4 mr-2" /> Print Voucher
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Create Product Dialog */}
+      <Dialog open={isNewProductModalOpen} onOpenChange={setIsNewProductModalOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Package className="h-5 w-5 text-emerald-600" />
+              Add New Product to Catalog
+            </DialogTitle>
+            <DialogDescription>
+              Create a new product here. It will be immediately available in this incoming record and added to your store inventory.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2 text-sm">
+            <div className="space-y-1.5">
+              <Label htmlFor="incoming-new-name" className="font-semibold">
+                Product Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="incoming-new-name"
+                placeholder="e.g. Mahadhan 24:24:0 Fertilizer"
+                value={newProductForm.name}
+                onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
+                autoFocus
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="incoming-new-cat" className="font-semibold">Category</Label>
+                <Input
+                  id="incoming-new-cat"
+                  placeholder="Fertilizers, Seeds, etc."
+                  value={newProductForm.category}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, category: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="incoming-new-unit" className="font-semibold">Unit of Measurement</Label>
+                <Input
+                  id="incoming-new-unit"
+                  placeholder="kg, liter, bag, bottle, pcs"
+                  value={newProductForm.unit}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, unit: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="incoming-new-buy-price" className="font-semibold">
+                  Purchase / Inward Cost (₹)
+                </Label>
+                <Input
+                  id="incoming-new-buy-price"
+                  type="number"
+                  placeholder="0.00"
+                  value={newProductForm.purchasePrice}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, purchasePrice: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="incoming-new-sell-price" className="font-semibold">
+                  Selling / Retail Price (₹)
+                </Label>
+                <Input
+                  id="incoming-new-sell-price"
+                  type="number"
+                  placeholder="0.00"
+                  value={newProductForm.sellingPrice}
+                  onChange={(e) => setNewProductForm({ ...newProductForm, sellingPrice: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="incoming-new-min-stock" className="font-semibold">Min Stock Alert Level</Label>
+              <Input
+                id="incoming-new-min-stock"
+                type="number"
+                placeholder="10"
+                value={newProductForm.minimumStock}
+                onChange={(e) => setNewProductForm({ ...newProductForm, minimumStock: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="incoming-new-desc" className="font-semibold">Description / Notes (Optional)</Label>
+              <Input
+                id="incoming-new-desc"
+                placeholder="Additional details..."
+                value={newProductForm.description}
+                onChange={(e) => setNewProductForm({ ...newProductForm, description: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsNewProductModalOpen(false);
+                setTargetItemIndex(null);
+              }}
+              disabled={isCreatingProduct}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateProductFromIncoming}
+              disabled={isCreatingProduct || !newProductForm.name.trim()}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+            >
+              {isCreatingProduct ? "Creating..." : "Save & Add to Incoming"}
             </Button>
           </DialogFooter>
         </DialogContent>
