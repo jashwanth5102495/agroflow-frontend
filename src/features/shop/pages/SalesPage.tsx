@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon, IndianRupee } from "lucide-react";
+import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon, IndianRupee, Printer, CheckCircle2 } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 import BannerSlideshow from "@/components/BannerSlideshow";
 import { toast } from "sonner";
@@ -826,16 +826,43 @@ export default function SalesPage() {
 
       {/* Printable Receipt Modal */}
       <Dialog open={!!completedSale} onOpenChange={(open) => !open && setCompletedSale(null)}>
-        <DialogContent className="sm:max-w-[400px] print:w-full print:max-w-full print:p-0 print:border-none print:shadow-none bg-white">
-          <DialogHeader className="print:hidden">
-            <DialogTitle>Invoice Generated</DialogTitle>
-            <DialogDescription>
-              Review the invoice and print it for the customer.
+        <DialogContent className="sm:max-w-[440px] max-h-[92vh] flex flex-col p-4 sm:p-5 print:w-full print:max-w-full print:p-0 print:border-none print:shadow-none bg-white">
+          <DialogHeader className="print:hidden pb-1 shrink-0">
+            <DialogTitle className="text-lg">Invoice Generated</DialogTitle>
+            <DialogDescription className="text-xs">
+              Review invoice details or print thermal bill for the customer.
             </DialogDescription>
           </DialogHeader>
+
+          {/* Sticky Top Action Bar for Immediate Access */}
+          {completedSale && (
+            <div className="print:hidden flex items-center justify-between gap-2 p-2.5 bg-emerald-50/90 border border-emerald-200 rounded-lg shrink-0 mt-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span>Invoice Ready</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  onClick={() => handlePrintBill(completedSale)} 
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm gap-1.5 h-8 px-3.5 text-xs"
+                >
+                  <ReceiptText className="w-4 h-4" /> Print Bill
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setCompletedSale(null)}
+                  className="h-8 px-3 text-xs"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
           
           {completedSale && (
-            <div id="printable-receipt" className="p-2 space-y-3 text-sm font-mono text-black bg-white print:p-0 print:text-xs">
+            <div id="printable-receipt" className="p-3 space-y-3 text-sm font-mono text-black bg-white print:p-0 print:text-xs overflow-y-auto flex-1 border rounded-md shadow-inner mt-2">
               <div className="text-center space-y-1">
                 <h2 className="text-xl font-bold uppercase">{completedSale.shop?.name || "AgriFlow Shop"}</h2>
                 <p>{completedSale.shop?.address}</p>
@@ -897,9 +924,9 @@ export default function SalesPage() {
             </div>
           )}
           
-          <DialogFooter className="print:hidden">
-            <Button variant="outline" onClick={() => setCompletedSale(null)}>Close</Button>
-            <Button onClick={() => handlePrintBill(completedSale)}><ReceiptText className="w-4 h-4 mr-2" /> Print Bill</Button>
+          <DialogFooter className="print:hidden pt-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setCompletedSale(null)}>Close</Button>
+            <Button size="sm" onClick={() => handlePrintBill(completedSale)} className="gap-1.5"><ReceiptText className="w-4 h-4" /> Print Bill</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
