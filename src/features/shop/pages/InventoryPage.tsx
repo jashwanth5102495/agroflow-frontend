@@ -30,7 +30,11 @@ import {
   ChevronLeft,
   ChevronRight,
   PackageCheck,
-  Package
+  Package,
+  TrendingUp,
+  TrendingDown,
+  Boxes,
+  IndianRupee
 } from "lucide-react";
 import { API_BASE_URL, authFetch, getAuthHeaders } from "@/config/api";
 import BannerSlideshow from "@/components/BannerSlideshow";
@@ -92,6 +96,7 @@ export default function InventoryPage() {
     name: string;
     category: string;
     unit: string;
+    purchasePrice: number | string;
     sellingPrice: number | string;
     minimumStock: number | string;
   } | null>(null);
@@ -154,6 +159,7 @@ export default function InventoryPage() {
       name: item.productId.name || "",
       category: item.productId.category || "",
       unit: item.productId.unit || "kg",
+      purchasePrice: item.productId.purchasePrice ?? "",
       sellingPrice: item.productId.sellingPrice ?? "",
       minimumStock: item.productId.minimumStock ?? 10,
     });
@@ -176,6 +182,9 @@ export default function InventoryPage() {
       };
       if (editingProduct.category) payload.category = editingProduct.category.trim();
       if (editingProduct.unit) payload.unit = editingProduct.unit.trim();
+      if (editingProduct.purchasePrice !== "") {
+        payload.purchasePrice = Number(editingProduct.purchasePrice);
+      }
       if (editingProduct.sellingPrice !== "") {
         payload.sellingPrice = Number(editingProduct.sellingPrice);
       }
@@ -208,8 +217,9 @@ export default function InventoryPage() {
                   name: trimmedName,
                   category: payload.category || item.productId.category,
                   unit: payload.unit || item.productId.unit,
-                  sellingPrice: payload.sellingPrice ?? item.productId.sellingPrice,
-                  minimumStock: payload.minimumStock ?? item.productId.minimumStock,
+                  purchasePrice: payload.purchasePrice !== undefined ? payload.purchasePrice : item.productId.purchasePrice,
+                  sellingPrice: payload.sellingPrice !== undefined ? payload.sellingPrice : item.productId.sellingPrice,
+                  minimumStock: payload.minimumStock !== undefined ? payload.minimumStock : item.productId.minimumStock,
                 },
               }
             : item
@@ -310,6 +320,31 @@ export default function InventoryPage() {
 
   const totalPages = pageSize === "ALL" ? 1 : Math.ceil(filteredInventory.length / pageSize) || 1;
 
+  // Full Inventory Financials & Profit Tracking
+  const totalStockCount = useMemo(
+    () => inventory.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0),
+    [inventory]
+  );
+  const totalInventoryCost = useMemo(
+    () =>
+      inventory.reduce(
+        (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.productId?.purchasePrice) || 0),
+        0
+      ),
+    [inventory]
+  );
+  const totalInventoryRetail = useMemo(
+    () =>
+      inventory.reduce(
+        (acc, item) => acc + (Number(item.quantity) || 0) * (Number(item.productId?.sellingPrice) || 0),
+        0
+      ),
+    [inventory]
+  );
+  const totalEstimatedProfit = Math.max(0, totalInventoryRetail - totalInventoryCost);
+  const overallMarginPct =
+    totalInventoryRetail > 0 ? ((totalEstimatedProfit / totalInventoryRetail) * 100).toFixed(1) : "0";
+
   const handleAddProduct = async () => {
     if (!newProduct.name || !newProduct.name.trim()) {
       toast.error("Please enter a product name.");
@@ -378,6 +413,8 @@ export default function InventoryPage() {
       "Unit",
       "Purchase Price",
       "Selling Price",
+      "Profit Per Unit",
+      "Margin (%)",
       "Current Stock",
       "Minimum Stock",
       "Status",
@@ -389,13 +426,19 @@ export default function InventoryPage() {
     exportItems.forEach((item) => {
       const p = item.productId || ({} as any);
       const status = getStockStatus(item.quantity, p.minimumStock || 10);
+      const buy = p.purchasePrice || 0;
+      const sell = p.sellingPrice || 0;
+      const profit = sell - buy;
+      const margin = sell > 0 ? ((profit / sell) * 100).toFixed(1) : "0";
       const row = [
         `"${(p.name || "").replace(/"/g, '""')}"`,
         `"${(p.category || "").replace(/"/g, '""')}"`,
         `"${(p.sku || "").replace(/"/g, '""')}"`,
         `"${(p.unit || "kg").replace(/"/g, '""')}"`,
-        p.purchasePrice || 0,
-        p.sellingPrice || 0,
+        buy,
+        sell,
+        profit,
+        margin,
         item.quantity || 0,
         p.minimumStock || 10,
         `"${status}"`,
@@ -630,6 +673,62 @@ export default function InventoryPage() {
         </div>
       </div>
 
+      {/* Inventory Financial & Profit Tracking Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-card border rounded-xl p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-medium">Total Products</span>
+            <Package className="h-4 w-4 text-primary" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-foreground">{inventory.length}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Catalog items active</p>
+          </div>
+        </div>
+
+        <div className="bg-card border rounded-xl p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-medium">Current Stock</span>
+            <Boxes className="h-4 w-4 text-indigo-600" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-indigo-600">{totalStockCount.toLocaleString("en-IN")}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Total units in warehouse</p>
+          </div>
+        </div>
+
+        <div className="bg-card border rounded-xl p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-medium">Purchase Value (Cost)</span>
+            <TrendingDown className="h-4 w-4 text-blue-600" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-blue-600">
+              ₹{totalInventoryCost.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Total purchase capital in stock</p>
+          </div>
+        </div>
+
+        <div className="bg-card border border-emerald-500/20 bg-emerald-500/[0.02] rounded-xl p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-xs font-medium text-emerald-800 dark:text-emerald-300">Expected Total Profit</span>
+            <TrendingUp className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="mt-2">
+            <div className="text-2xl font-bold text-emerald-600">
+              ₹{totalEstimatedProfit.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground">
+              <span className="font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1 py-0.2 rounded">
+                +{overallMarginPct}% margin
+              </span>
+              <span>· Retail: ₹{totalInventoryRetail.toLocaleString("en-IN")}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-card rounded-lg border shadow-sm">
         <div className="p-4 flex flex-col sm:flex-row gap-4 justify-between border-b">
           <div className="relative w-full sm:w-80">
@@ -670,7 +769,9 @@ export default function InventoryPage() {
                 <TableHead className="min-w-[280px]">Product Name (Click ⋮ to Edit)</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
-                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Purchase Price (₹)</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Selling Price (₹)</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Profit Margin</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Restock</TableHead>
               </TableRow>
@@ -678,7 +779,7 @@ export default function InventoryPage() {
             <TableBody>
               {filteredInventory.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                     <Package className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
                     {searchTerm
                       ? `No products match "${searchTerm}".`
@@ -722,7 +823,7 @@ export default function InventoryPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleOpenEdit(item)}>
                                 <Package className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <span>Edit Price & Stock Alert</span>
+                                <span>Edit Prices & Stock Alert</span>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -748,8 +849,39 @@ export default function InventoryPage() {
                         <span className="text-xs text-muted-foreground ml-1">{item.productId?.unit || "unit"}</span>
                       </TableCell>
                       
+                      {/* Purchase Price */}
+                      <TableCell className="text-right font-medium text-muted-foreground">
+                        ₹{item.productId?.purchasePrice ?? 0}
+                      </TableCell>
+
+                      {/* Selling Price */}
+                      <TableCell className="text-right font-semibold text-foreground">
+                        ₹{item.productId?.sellingPrice ?? 0}
+                      </TableCell>
+
+                      {/* Profit Margin */}
                       <TableCell className="text-right font-medium">
-                        ₹{item.productId?.sellingPrice || 0}
+                        {(() => {
+                          const sell = item.productId?.sellingPrice ?? 0;
+                          const buy = item.productId?.purchasePrice ?? 0;
+                          const profit = sell - buy;
+                          const marginPct = sell > 0 ? ((profit / sell) * 100).toFixed(0) : "0";
+                          if (profit > 0) {
+                            return (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-semibold text-xs bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800">
+                                +₹{profit} ({marginPct}%)
+                              </span>
+                            );
+                          } else if (profit === 0) {
+                            return <span className="text-xs text-muted-foreground">₹0</span>;
+                          } else {
+                            return (
+                              <span className="inline-flex items-center gap-1 text-destructive font-semibold text-xs bg-destructive/10 px-2 py-0.5 rounded border border-destructive/20">
+                                -₹{Math.abs(profit)}
+                              </span>
+                            );
+                          }
+                        })()}
                       </TableCell>
                       
                       <TableCell>{getStatusBadge(status)}</TableCell>
@@ -875,23 +1007,50 @@ export default function InventoryPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
+                  <Label htmlFor="edit-purchase-price" className="text-sm font-semibold">Purchase Price (₹)</Label>
+                  <Input
+                    id="edit-purchase-price"
+                    type="number"
+                    value={editingProduct.purchasePrice}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, purchasePrice: e.target.value })}
+                    placeholder="Cost price"
+                  />
+                </div>
+                <div className="space-y-1.5">
                   <Label htmlFor="edit-selling-price" className="text-sm font-semibold">Selling Price (₹)</Label>
                   <Input
                     id="edit-selling-price"
                     type="number"
                     value={editingProduct.sellingPrice}
                     onChange={(e) => setEditingProduct({ ...editingProduct, sellingPrice: e.target.value })}
+                    placeholder="Selling price"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="edit-min-stock" className="text-sm font-semibold">Min Stock Alert</Label>
-                  <Input
-                    id="edit-min-stock"
-                    type="number"
-                    value={editingProduct.minimumStock}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, minimumStock: e.target.value })}
-                  />
+              </div>
+
+              {/* Profit Preview in Edit Modal */}
+              {Number(editingProduct.sellingPrice) > 0 && (
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg flex items-center justify-between text-xs">
+                  <span className="text-emerald-800 dark:text-emerald-300 font-medium">Estimated Profit / Margin:</span>
+                  <div className="font-semibold text-emerald-700 dark:text-emerald-300">
+                    +₹{(Number(editingProduct.sellingPrice) - (Number(editingProduct.purchasePrice) || 0)).toFixed(2)}/unit
+                    {Number(editingProduct.purchasePrice) > 0 && (
+                      <span className="ml-1 text-[11px] opacity-80">
+                        ({(((Number(editingProduct.sellingPrice) - Number(editingProduct.purchasePrice)) / Number(editingProduct.sellingPrice)) * 100).toFixed(1)}%)
+                      </span>
+                    )}
+                  </div>
                 </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-min-stock" className="text-sm font-semibold">Min Stock Alert</Label>
+                <Input
+                  id="edit-min-stock"
+                  type="number"
+                  value={editingProduct.minimumStock}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, minimumStock: e.target.value })}
+                />
               </div>
             </div>
           )}
@@ -965,6 +1124,19 @@ export default function InventoryPage() {
                 onChange={(e) => setNewProduct({ ...newProduct, sellingPrice: e.target.value })}
               />
             </div>
+            {Number(newProduct.sellingPrice) > 0 && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <span className="text-right text-xs text-muted-foreground font-medium">Margin</span>
+                <div className="col-span-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2 rounded text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                  +₹{(Number(newProduct.sellingPrice) - (Number(newProduct.purchasePrice) || 0)).toFixed(2)}/unit
+                  {Number(newProduct.purchasePrice) > 0 && (
+                    <span className="ml-1 opacity-80">
+                      ({(((Number(newProduct.sellingPrice) - Number(newProduct.purchasePrice)) / Number(newProduct.sellingPrice)) * 100).toFixed(1)}% margin)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="minstock" className="text-right">Min Stock</Label>
               <Input

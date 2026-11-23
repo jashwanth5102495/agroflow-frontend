@@ -11,7 +11,8 @@ import {
   ArrowDownToLine,
   Calendar,
   Layers,
-  ShoppingBag
+  ShoppingBag,
+  CreditCard
 } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 import BannerSlideshow from "@/components/BannerSlideshow";
@@ -39,11 +40,17 @@ export default function DashboardPage() {
     todayPurchases: 0,
     todayPurchasesCount: 0,
     todayCollection: 0,
+    todayCost: 0,
+    todayProfit: 0,
+    todayProfitMargin: 0,
     totalFarmers: 0,
     totalProducts: 0,
     outstandingCredit: 0,
     overallSales: 0,
     overallPurchases: 0,
+    overallCost: 0,
+    overallProfit: 0,
+    overallProfitMargin: 0,
   });
   const [recentSales, setRecentSales] = useState<any[]>([]);
   const [recentPurchases, setRecentPurchases] = useState<any[]>([]);
@@ -132,7 +139,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Today's Sales */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -146,6 +153,27 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground mt-1">
               {summary.todaySalesCount} sale(s) today
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Today's Profit (End of Day Realized Profit) */}
+        <Card className="hover:shadow-md transition-shadow border-emerald-500/20 bg-emerald-500/[0.02]">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Today's Profit</CardTitle>
+            <div className="p-1 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">
+              ₹{(summary.todayProfit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded text-[11px]">
+                {summary.todayProfitMargin || 0}% margin
+              </span>
+              <span>· Cost: ₹{(summary.todayCost || 0).toLocaleString("en-IN")}</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -165,25 +193,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Products in Inventory */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Catalog Products</CardTitle>
-            <Package className="h-4 w-4 text-indigo-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-indigo-600">{summary.totalProducts}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Active items listed in store
-            </p>
-          </CardContent>
-        </Card>
-
         {/* Credit Due */}
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Credit Outstanding</CardTitle>
-            <TrendingUp className="h-4 w-4 text-amber-500" />
+            <CreditCard className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-500">
@@ -197,7 +211,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Secondary Metrics Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-muted/30 border rounded-xl p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Total Revenue (Overall)</p>
@@ -208,7 +222,18 @@ export default function DashboardPage() {
 
         <div className="bg-muted/30 border rounded-xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground">Total Incoming Material (Overall)</p>
+            <p className="text-xs text-muted-foreground">Total Realized Profit</p>
+            <p className="text-lg font-bold text-emerald-600">
+              ₹{(summary.overallProfit || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-[11px] text-muted-foreground">{summary.overallProfitMargin || 0}% overall margin</p>
+          </div>
+          <TrendingUp className="h-5 w-5 text-emerald-600 opacity-80" />
+        </div>
+
+        <div className="bg-muted/30 border rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-muted-foreground">Total Incoming Material</p>
             <p className="text-lg font-bold text-foreground">₹{summary.overallPurchases.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
           </div>
           <ArrowDownToLine className="h-5 w-5 text-primary opacity-80" />
@@ -216,10 +241,10 @@ export default function DashboardPage() {
 
         <div className="bg-muted/30 border rounded-xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground">Registered Farmers</p>
-            <p className="text-lg font-bold text-foreground">{summary.totalFarmers} active customer(s)</p>
+            <p className="text-xs text-muted-foreground">Catalog Products / Farmers</p>
+            <p className="text-lg font-bold text-foreground">{summary.totalProducts} items · {summary.totalFarmers} farmers</p>
           </div>
-          <Users className="h-5 w-5 text-sky-600 opacity-80" />
+          <Package className="h-5 w-5 text-indigo-600 opacity-80" />
         </div>
       </div>
 
