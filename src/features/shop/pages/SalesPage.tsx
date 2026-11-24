@@ -763,13 +763,20 @@ export default function SalesPage() {
         </div>
 
         <div className="lg:col-span-1 flex flex-col h-full">
-          <Card className="flex-1 flex flex-col h-full border shadow-sm">
-            <CardHeader className="pb-3 border-b bg-muted/20 shrink-0">
-              <CardTitle>Current Sale</CardTitle>
-              <div className="mt-4 space-y-2">
-                <Label>Select Farmer</Label>
+          <Card className="flex-1 flex flex-col h-full border shadow-sm sticky top-4">
+            <CardHeader className="pb-3 border-b bg-muted/20 shrink-0 space-y-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-bold">Current Sale</CardTitle>
+                <div className="text-right">
+                  <span className="text-[11px] text-muted-foreground block font-medium">Grand Total</span>
+                  <span className="text-xl font-bold text-primary">₹{grandTotal.toLocaleString("en-IN")}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Select Farmer</Label>
                 <Select value={selectedFarmer} onValueChange={setSelectedFarmer}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9">
                     <SelectValue placeholder="Select farmer" />
                   </SelectTrigger>
                   <SelectContent>
@@ -780,10 +787,20 @@ export default function SalesPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* TOP ACTION BUTTON: Placed right at the top so it is always visible without scrolling */}
+              <Button 
+                className="w-full gradient-btn shadow-md py-5 text-base font-semibold" 
+                disabled={cart.length === 0} 
+                onClick={handleOpenCheckout}
+              >
+                <ReceiptText className="mr-2 h-5 w-5" /> Generate Invoice ({cart.length} {cart.length === 1 ? 'item' : 'items'} • ₹{grandTotal.toLocaleString("en-IN")})
+              </Button>
             </CardHeader>
-            <CardContent className="flex-1 p-0 overflow-y-auto">
+
+            <CardContent className="flex-1 p-0 overflow-y-auto max-h-[380px]">
               <Table>
-                <TableHeader className="bg-muted/50">
+                <TableHeader className="bg-muted/50 sticky top-0 z-10">
                   <TableRow>
                     <TableHead>Item</TableHead>
                     <TableHead className="text-center w-16">Qty</TableHead>
@@ -794,20 +811,20 @@ export default function SalesPage() {
                 <TableBody>
                   {cart.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground text-xs">
                         Click products to add them to the cart
                       </TableCell>
                     </TableRow>
                   ) : (
                     cart.map((item) => (
                       <TableRow key={item.productId}>
-                        <TableCell className="font-medium text-sm py-3">
+                        <TableCell className="font-medium text-sm py-2.5">
                           {formatProductName(item.name)}
                           <div className="text-xs text-muted-foreground">₹{item.price}/unit</div>
                         </TableCell>
                         <TableCell className="text-center font-medium">{item.qty}</TableCell>
-                        <TableCell className="text-right font-medium py-3">₹{item.total}</TableCell>
-                        <TableCell className="py-3 px-2">
+                        <TableCell className="text-right font-medium py-2.5">₹{item.total}</TableCell>
+                        <TableCell className="py-2.5 px-2">
                           <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => removeFromCart(item.productId)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -818,17 +835,20 @@ export default function SalesPage() {
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="flex flex-col border-t bg-muted/10 pt-4 gap-4 shrink-0">
-              <div className="w-full space-y-1">
-                <div className="flex justify-between text-lg font-bold border-t pt-2 mt-2">
-                  <span>Total</span>
-                  <span className="text-primary">₹{grandTotal.toLocaleString("en-IN")}</span>
-                </div>
-              </div>
-              <Button className="w-full gradient-btn shadow-md py-6 text-lg mt-2" disabled={cart.length === 0} onClick={handleOpenCheckout}>
-                <ReceiptText className="mr-2 h-5 w-5" /> Generate Invoice
-              </Button>
-            </CardFooter>
+
+            {cart.length > 0 && (
+              <CardFooter className="flex justify-between items-center border-t bg-muted/10 py-2.5 px-4 shrink-0 text-xs">
+                <span className="text-muted-foreground font-medium">{cart.length} {cart.length === 1 ? 'item' : 'items'} in bill</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1 px-2 font-medium"
+                  onClick={() => setCart([])}
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Clear Cart
+                </Button>
+              </CardFooter>
+            )}
           </Card>
         </div>
       </div>
@@ -1279,17 +1299,30 @@ export default function SalesPage() {
 
               {/* Date Bill Cart & Checkout Card */}
               <div className="lg:col-span-1 flex flex-col h-full">
-                <Card className="flex-1 flex flex-col h-full border shadow-sm">
-                  <CardHeader className="pb-3 border-b bg-muted/20 shrink-0">
+                <Card className="flex-1 flex flex-col h-full border shadow-sm sticky top-4">
+                  <CardHeader className="pb-3 border-b bg-muted/20 shrink-0 space-y-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm font-semibold">Date Bill Cart</CardTitle>
                       <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
                         <Calendar className="h-3 w-3" /> {formatDateDisplay(dateBillDate)}
                       </span>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Billing to: <span className="font-semibold text-foreground">{dateBillSelectedFarmer !== "walkin" ? (farmers.find(f => f._id === dateBillSelectedFarmer)?.name || "Registered Farmer") : (dateBillCustomerName || "Walk-in Customer")}</span>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground truncate max-w-[200px]">
+                        Customer: <span className="font-semibold text-foreground">{dateBillSelectedFarmer !== "walkin" ? (farmers.find(f => f._id === dateBillSelectedFarmer)?.name || "Registered Farmer") : (dateBillCustomerName || "Walk-in Customer")}</span>
+                      </span>
+                      <span className="text-base font-bold text-primary">₹{dateBillGrandTotal.toLocaleString("en-IN")}</span>
                     </div>
+
+                    {/* TOP ACTION BUTTON: Generate Date Bill right at top */}
+                    <Button
+                      className="w-full gradient-btn shadow-md py-5 text-sm font-semibold"
+                      disabled={dateBillCart.length === 0 || isSubmittingDateBill || (dateBillPaymentMethod === "CREDIT" && dateBillSelectedFarmer === "walkin")}
+                      onClick={handleGenerateDateBill}
+                    >
+                      <ReceiptText className="mr-2 h-4 w-4" />
+                      {isSubmittingDateBill ? "Generating..." : `Generate Date Bill (${dateBillCart.length} ${dateBillCart.length === 1 ? 'item' : 'items'} • ₹${dateBillGrandTotal.toLocaleString("en-IN")})`}
+                    </Button>
                   </CardHeader>
 
                   <CardContent className="flex-1 p-0 overflow-y-auto max-h-[300px]">
