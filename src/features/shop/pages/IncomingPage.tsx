@@ -103,7 +103,7 @@ export default function IncomingPage() {
   const [newProductForm, setNewProductForm] = useState({
     name: "",
     category: "General",
-    unit: "kg",
+    unit: "pcs",
     purchasePrice: "",
     sellingPrice: "",
     minimumStock: "10",
@@ -237,7 +237,7 @@ export default function IncomingPage() {
       const payload = {
         name: newProductForm.name.trim(),
         category: newProductForm.category.trim() || "General",
-        unit: newProductForm.unit.trim() || "kg",
+        unit: newProductForm.unit.trim() || "pcs",
         purchasePrice: Number(newProductForm.purchasePrice) || 0,
         sellingPrice: Number(newProductForm.sellingPrice) || (Number(newProductForm.purchasePrice) || 0),
         minimumStock: Number(newProductForm.minimumStock) || 10,
@@ -304,7 +304,7 @@ export default function IncomingPage() {
       setNewProductForm({
         name: "",
         category: "General",
-        unit: "kg",
+        unit: "pcs",
         purchasePrice: "",
         sellingPrice: "",
         minimumStock: "10",

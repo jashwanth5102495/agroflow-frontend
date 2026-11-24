@@ -80,7 +80,7 @@ export default function InventoryPage() {
   const [newProduct, setNewProduct] = useState({
     name: "",
     category: "",
-    unit: "kg",
+    unit: "pcs",
     purchasePrice: "",
     sellingPrice: "",
     minimumStock: "10",
@@ -158,7 +158,7 @@ export default function InventoryPage() {
       _id: item.productId._id,
       name: item.productId.name || "",
       category: item.productId.category || "",
-      unit: item.productId.unit || "kg",
+      unit: item.productId.unit && !["kg", "gm", "g", "ml", "L", "ltr"].includes(item.productId.unit) ? item.productId.unit : "pcs",
       purchasePrice: item.productId.purchasePrice ?? "",
       sellingPrice: item.productId.sellingPrice ?? "",
       minimumStock: item.productId.minimumStock ?? 10,
@@ -356,7 +356,7 @@ export default function InventoryPage() {
       const productPayload: any = {
         name: newProduct.name.trim(),
         category: newProduct.category?.trim() || "General",
-        unit: newProduct.unit?.trim() || "kg",
+        unit: newProduct.unit?.trim() || "pcs",
         purchasePrice: Number(newProduct.purchasePrice) || 0,
         sellingPrice: Number(newProduct.sellingPrice) || 0,
         minimumStock: Number(newProduct.minimumStock) || 10,
@@ -383,7 +383,7 @@ export default function InventoryPage() {
       setNewProduct({
         name: "",
         category: "",
-        unit: "kg",
+        unit: "pcs",
         purchasePrice: "",
         sellingPrice: "",
         minimumStock: "10",
@@ -434,7 +434,7 @@ export default function InventoryPage() {
         `"${(p.name || "").replace(/"/g, '""')}"`,
         `"${(p.category || "").replace(/"/g, '""')}"`,
         `"${(p.sku || "").replace(/"/g, '""')}"`,
-        `"${(p.unit || "kg").replace(/"/g, '""')}"`,
+        `"${((() => { const u = (p.unit || '').toLowerCase(); return !u || ['kg', 'gm', 'g', 'ml', 'l', 'ltr', 'liter', 'litre', 'unit'].includes(u) ? 'pcs' : (p.unit || 'pcs'); })()).replace(/"/g, '""')}"`,
         buy,
         sell,
         profit,
@@ -545,7 +545,8 @@ export default function InventoryPage() {
       if (!name || name.length < 2) continue;
 
       const category = catIdx !== -1 && row[catIdx] ? row[catIdx].trim() : "General";
-      const unit = unitIdx !== -1 && row[unitIdx] ? row[unitIdx].trim() : "kg";
+      const rawUnit = unitIdx !== -1 && row[unitIdx] ? row[unitIdx].trim() : "pcs";
+      const unit = !rawUnit || ["kg", "gm", "g", "ml", "l", "ltr", "liter", "litre", "unit"].includes(rawUnit.toLowerCase()) ? "pcs" : rawUnit;
       const purchasePrice = buyIdx !== -1 && !isNaN(Number(row[buyIdx])) ? Number(row[buyIdx]) : 0;
       const sellingPrice = sellIdx !== -1 && !isNaN(Number(row[sellIdx])) ? Number(row[sellIdx]) : (purchasePrice > 0 ? purchasePrice : 0);
       const stock = stockIdx !== -1 && !isNaN(Number(row[stockIdx])) ? Number(row[stockIdx]) : 0;
@@ -692,8 +693,8 @@ export default function InventoryPage() {
             <Boxes className="h-4 w-4 text-indigo-600" />
           </div>
           <div className="mt-2">
-            <div className="text-2xl font-bold text-indigo-600">{totalStockCount.toLocaleString("en-IN")}</div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Total units in warehouse</p>
+            <div className="text-2xl font-bold text-indigo-600">{totalStockCount.toLocaleString("en-IN")} pcs</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Total pieces in warehouse</p>
           </div>
         </div>
 
@@ -768,7 +769,7 @@ export default function InventoryPage() {
               <TableRow>
                 <TableHead className="min-w-[280px]">Product Name (Click ⋮ to Edit)</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Stock (Pcs)</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Purchase Price (₹)</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Selling Price (₹)</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Profit Margin</TableHead>
@@ -846,7 +847,15 @@ export default function InventoryPage() {
                       
                       <TableCell className="text-right font-medium">
                         <span className="text-sm font-semibold">{item.quantity}</span>
-                        <span className="text-xs text-muted-foreground ml-1">{item.productId?.unit || "unit"}</span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          {(() => {
+                            const u = (item.productId?.unit || "").toLowerCase();
+                            if (!u || ["kg", "gm", "g", "ml", "l", "ltr", "liter", "litre", "unit"].includes(u)) {
+                              return "pcs";
+                            }
+                            return item.productId?.unit || "pcs";
+                          })()}
+                        </span>
                       </TableCell>
                       
                       {/* Purchase Price */}
@@ -1000,7 +1009,7 @@ export default function InventoryPage() {
                     id="edit-unit"
                     value={editingProduct.unit}
                     onChange={(e) => setEditingProduct({ ...editingProduct, unit: e.target.value })}
-                    placeholder="kg, ltr, piece"
+                    placeholder="pcs, packet, bottle, box"
                   />
                 </div>
               </div>
@@ -1033,7 +1042,7 @@ export default function InventoryPage() {
                 <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2.5 rounded-lg flex items-center justify-between text-xs">
                   <span className="text-emerald-800 dark:text-emerald-300 font-medium">Estimated Profit / Margin:</span>
                   <div className="font-semibold text-emerald-700 dark:text-emerald-300">
-                    +₹{(Number(editingProduct.sellingPrice) - (Number(editingProduct.purchasePrice) || 0)).toFixed(2)}/unit
+                    +₹{(Number(editingProduct.sellingPrice) - (Number(editingProduct.purchasePrice) || 0)).toFixed(2)}/pc
                     {Number(editingProduct.purchasePrice) > 0 && (
                       <span className="ml-1 text-[11px] opacity-80">
                         ({(((Number(editingProduct.sellingPrice) - Number(editingProduct.purchasePrice)) / Number(editingProduct.sellingPrice)) * 100).toFixed(1)}%)
@@ -1099,7 +1108,7 @@ export default function InventoryPage() {
               <Input
                 id="unit"
                 className="col-span-3"
-                placeholder="kg, ltr, piece"
+                placeholder="pcs, packet, bottle, box"
                 value={newProduct.unit}
                 onChange={(e) => setNewProduct({ ...newProduct, unit: e.target.value })}
               />
@@ -1128,7 +1137,7 @@ export default function InventoryPage() {
               <div className="grid grid-cols-4 items-center gap-4">
                 <span className="text-right text-xs text-muted-foreground font-medium">Margin</span>
                 <div className="col-span-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2 rounded text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-                  +₹{(Number(newProduct.sellingPrice) - (Number(newProduct.purchasePrice) || 0)).toFixed(2)}/unit
+                  +₹{(Number(newProduct.sellingPrice) - (Number(newProduct.purchasePrice) || 0)).toFixed(2)}/pc
                   {Number(newProduct.purchasePrice) > 0 && (
                     <span className="ml-1 opacity-80">
                       ({(((Number(newProduct.sellingPrice) - Number(newProduct.purchasePrice)) / Number(newProduct.sellingPrice)) * 100).toFixed(1)}% margin)
