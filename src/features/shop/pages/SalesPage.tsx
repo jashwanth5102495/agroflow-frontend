@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon, IndianRupee, Printer, CheckCircle2 } from "lucide-react";
+import { Search, Plus, Trash2, ReceiptText, Info, Copy, Link as LinkIcon, IndianRupee, Printer, CheckCircle2, Calendar, CalendarDays, History, Filter, RotateCcw, Minus, ArrowRight } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
 import BannerSlideshow from "@/components/BannerSlideshow";
 import { toast } from "sonner";
@@ -71,6 +71,22 @@ export default function SalesPage() {
   const [historySearchTerm, setHistorySearchTerm] = useState("");
   const [salesSummary, setSalesSummary] = useState({ todaySales: 0, overallSales: 0 });
 
+  // Date Bill State
+  const [dateBillDate, setDateBillDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [dateBillSelectedFarmer, setDateBillSelectedFarmer] = useState("walkin");
+  const [dateBillCustomerName, setDateBillCustomerName] = useState("");
+  const [dateBillCustomerPhone, setDateBillCustomerPhone] = useState("");
+  const [dateBillCart, setDateBillCart] = useState<CartItem[]>([]);
+  const [dateBillSearchTerm, setDateBillSearchTerm] = useState("");
+  const [dateBillPaymentMethod, setDateBillPaymentMethod] = useState("CASH");
+  const [dateBillDownPayment, setDateBillDownPayment] = useState("");
+  const [dateBillNotes, setDateBillNotes] = useState("");
+  const [isSubmittingDateBill, setIsSubmittingDateBill] = useState(false);
+  const [dateBillsTrack, setDateBillsTrack] = useState<any[]>([]);
+  const [dateBillSubView, setDateBillSubView] = useState<"create" | "track">("create");
+  const [dateBillTrackSearch, setDateBillTrackSearch] = useState("");
+  const [dateBillFilterDate, setDateBillFilterDate] = useState("");
+
   // Cashier Mode
   const [isCashierMode, setIsCashierMode] = useState(false);
   const [cashierUrl, setCashierUrl] = useState("");
@@ -85,16 +101,18 @@ export default function SalesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [inventoryRes, farmersRes, salesRes, summaryRes] = await Promise.all([
+        const [inventoryRes, farmersRes, salesRes, summaryRes, dateBillsRes] = await Promise.all([
           fetch(`${API_BASE_URL}/inventory?limit=1000`, { headers: getHeaders() }),
           fetch(`${API_BASE_URL}/farmers`, { headers: getHeaders() }),
-          fetch(`${API_BASE_URL}/sales?limit=50`, { headers: getHeaders() }),
+          fetch(`${API_BASE_URL}/sales?limit=100`, { headers: getHeaders() }),
           fetch(`${API_BASE_URL}/dashboard/summary`, { headers: getHeaders() }),
+          fetch(`${API_BASE_URL}/sales?isDateBill=true&limit=500`, { headers: getHeaders() }),
         ]);
         const inventoryData = await inventoryRes.json();
         const farmersData = await farmersRes.json();
         const salesData = await salesRes.json();
         const summaryData = await summaryRes.json();
+        const dateBillsData = await dateBillsRes.json();
 
         if (inventoryRes.ok && inventoryData.success) {
           const mappedProducts = inventoryData.data.map((item: any) => ({
@@ -108,6 +126,11 @@ export default function SalesPage() {
         }
         if (salesRes.ok && salesData.success) {
           setSalesHistory(salesData.data || []);
+        }
+        if (dateBillsRes.ok && dateBillsData.success) {
+          setDateBillsTrack(dateBillsData.data || []);
+        } else if (salesRes.ok && salesData.success) {
+          setDateBillsTrack((salesData.data || []).filter((s: any) => s.isDateBill));
         }
         if (summaryRes.ok && summaryData.success) {
           setSalesSummary({
@@ -180,20 +203,40 @@ export default function SalesPage() {
     setIsCheckoutOpen(true);
   };
 
-  const handlePrintBill = (sale: any) => {
+  const handlePrintBill = async (sale: any) => {
     if (!sale) return;
+
+    let saleToPrint = sale;
+    if ((!sale.cartItems || sale.cartItems.length === 0) && (!sale.items || sale.items.length === 0) && sale._id) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/sales/${sale._id}`, { headers: getHeaders() });
+        const data = await res.json();
+        if (res.ok && data.success && data.data) {
+          saleToPrint = {
+            ...data.data.sale,
+            items: data.data.items,
+          };
+        }
+      } catch (e) {
+        console.error("Failed to fetch full sale items for printing", e);
+      }
+    }
+
     const printWindow = window.open("", "_blank", "width=420,height=650");
     if (!printWindow) {
       window.print();
       return;
     }
 
-    const grandTotal = sale.total ?? sale.totalAmount ?? 0;
-    const downPayment = sale.downPayment ?? sale.amountPaid ?? 0;
+    const grandTotal = saleToPrint.total ?? saleToPrint.totalAmount ?? 0;
+    const downPayment = saleToPrint.downPayment ?? saleToPrint.amountPaid ?? 0;
     const balance = grandTotal - downPayment;
+    const billDate = saleToPrint.saleDate
+      ? new Date(saleToPrint.saleDate)
+      : (saleToPrint.createdAt ? new Date(saleToPrint.createdAt) : new Date());
 
-    const itemRows = (sale.cartItems || sale.items || []).map((item: any) => {
-      const name = formatProductName(item.name || item.productId?.name || "Item");
+    const itemRows = (saleToPrint.cartItems || saleToPrint.items || []).map((item: any) => {
+      const name = formatProductName(item.name || item.productName || item.productId?.name || "Item");
       const qty = item.qty || item.quantity || 1;
       const price = item.price || item.unitPrice || 0;
       const total = item.total || item.subtotal || qty * price;
@@ -211,7 +254,7 @@ export default function SalesPage() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Invoice - ${sale.invoiceNumber || "Bill"}</title>
+          <title>Invoice - ${saleToPrint.invoiceNumber || "Bill"}</title>
           <style>
             @page { margin: 4mm; size: 80mm auto; }
             body { font-family: monospace, -apple-system, sans-serif; font-size: 12px; color: #000; margin: 0; padding: 10px; width: 300px; }
@@ -225,14 +268,19 @@ export default function SalesPage() {
         </head>
         <body>
           <div class="center">
-            <h2 style="margin: 0; font-size: 16px;" class="bold">${sale.shop?.name || "AGRIFLOW SHOP"}</h2>
-            <div style="font-size: 10px; color: #444;">${sale.shop?.address || ""}</div>
-            <div style="font-size: 10px; color: #444;">Ph: ${sale.shop?.phone || ""}</div>
+            <h2 style="margin: 0; font-size: 16px;" class="bold">${saleToPrint.shop?.name || "AGRIFLOW SHOP"}</h2>
+            <div style="font-size: 10px; color: #444;">${saleToPrint.shop?.address || ""}</div>
+            <div style="font-size: 10px; color: #444;">Ph: ${saleToPrint.shop?.phone || ""}</div>
           </div>
           <div class="dashed"></div>
           <div style="font-size: 10px;">
-            <div class="row"><span>Inv: <b>${sale.invoiceNumber || "—"}</b></span><span>${new Date(sale.createdAt || Date.now()).toLocaleDateString("en-IN")}</span></div>
-            <div class="row"><span>Cust: <b>${sale.customerName || sale.farmerId?.name || "Walk-in"}</b></span></div>
+            <div class="row">
+              <span>Inv: <b>${saleToPrint.invoiceNumber || "—"}</b></span>
+              <span>Date: <b>${billDate.toLocaleDateString("en-IN")}</b></span>
+            </div>
+            <div class="row"><span>Cust: <b>${saleToPrint.customerName || saleToPrint.farmerId?.name || "Walk-in"}</b></span></div>
+            ${saleToPrint.isDateBill ? `<div class="row" style="color: #555;"><span>Type: <b>Date Bill</b></span></div>` : ""}
+            ${saleToPrint.notes ? `<div class="row" style="color: #555;"><span>Notes: ${saleToPrint.notes}</span></div>` : ""}
           </div>
           <div class="dashed"></div>
           <table>
@@ -250,8 +298,8 @@ export default function SalesPage() {
           </table>
           <div class="dashed"></div>
           <div class="row bold" style="font-size: 13px;"><span>Grand Total:</span><span>₹${grandTotal.toLocaleString("en-IN")}</span></div>
-          <div class="row"><span>Paid (${sale.paymentMethod || "CASH"}):</span><span>₹${Number(downPayment).toLocaleString("en-IN")}</span></div>
-          ${sale.paymentMethod === "CREDIT" ? `<div class="row bold"><span>Balance (Credit):</span><span>₹${balance.toLocaleString("en-IN")}</span></div>` : ""}
+          <div class="row"><span>Paid (${saleToPrint.paymentMethod || "CASH"}):</span><span>₹${Number(downPayment).toLocaleString("en-IN")}</span></div>
+          ${saleToPrint.paymentMethod === "CREDIT" || (saleToPrint.amountDue && saleToPrint.amountDue > 0) ? `<div class="row bold"><span>Balance (Credit):</span><span>₹${(saleToPrint.amountDue ?? balance).toLocaleString("en-IN")}</span></div>` : ""}
           <div class="dashed"></div>
           <div class="center" style="margin-top: 10px;">
             <div class="bold" style="font-size: 12px; font-style: italic;">Thanks for visiting! See you again!</div>
@@ -381,6 +429,201 @@ export default function SalesPage() {
     toast.success("Cashier link copied to clipboard!");
   };
 
+  // Date Bill helpers & actions
+  const formatDateDisplay = (dateStr?: string | Date) => {
+    if (!dateStr) return "—";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  };
+
+  const dateBillGrandTotal = dateBillCart.reduce((acc, item) => acc + item.total, 0);
+
+  const addDateBillToCart = (product: Product) => {
+    const existing = dateBillCart.find((item) => item.productId === product._id);
+    if (existing) {
+      const newQty = existing.qty + 1;
+      const newCart = dateBillCart.map((item) =>
+        item.productId === product._id
+          ? { ...item, qty: newQty, total: newQty * item.price }
+          : item
+      );
+      setDateBillCart(newCart);
+      if (dateBillPaymentMethod !== "CREDIT") {
+        const newTotal = newCart.reduce((acc, item) => acc + item.total, 0);
+        setDateBillDownPayment(newTotal.toString());
+      }
+    } else {
+      const newCart = [
+        ...dateBillCart,
+        {
+          productId: product._id,
+          name: formatProductName(product.name),
+          price: product.sellingPrice,
+          qty: 1,
+          total: product.sellingPrice,
+        },
+      ];
+      setDateBillCart(newCart);
+      if (dateBillPaymentMethod !== "CREDIT") {
+        const newTotal = newCart.reduce((acc, item) => acc + item.total, 0);
+        setDateBillDownPayment(newTotal.toString());
+      }
+    }
+  };
+
+  const updateDateBillQty = (productId: string, delta: number) => {
+    const newCart = dateBillCart
+      .map((item) => {
+        if (item.productId === productId) {
+          const newQty = item.qty + delta;
+          return newQty > 0 ? { ...item, qty: newQty, total: newQty * item.price } : null;
+        }
+        return item;
+      })
+      .filter(Boolean) as CartItem[];
+    setDateBillCart(newCart);
+    if (dateBillPaymentMethod !== "CREDIT") {
+      const newTotal = newCart.reduce((acc, item) => acc + item.total, 0);
+      setDateBillDownPayment(newTotal.toString());
+    }
+  };
+
+  const removeDateBillFromCart = (productId: string) => {
+    const newCart = dateBillCart.filter((item) => item.productId !== productId);
+    setDateBillCart(newCart);
+    if (dateBillPaymentMethod !== "CREDIT") {
+      const newTotal = newCart.reduce((acc, item) => acc + item.total, 0);
+      setDateBillDownPayment(newTotal.toString());
+    }
+  };
+
+  const handleGenerateDateBill = async () => {
+    if (!dateBillDate) {
+      toast.error("Please select a date for the bill.");
+      return;
+    }
+    if (dateBillCart.length === 0) {
+      toast.error("Please add at least one product to the bill.");
+      return;
+    }
+    if (dateBillSelectedFarmer === "walkin" && dateBillPaymentMethod === "CREDIT") {
+      toast.error("Walk-in customers cannot take credit. Please select a registered farmer.");
+      return;
+    }
+    if (dateBillSelectedFarmer === "walkin" && !dateBillCustomerName.trim()) {
+      toast.error("Please enter a customer name for the date bill.");
+      return;
+    }
+
+    setIsSubmittingDateBill(true);
+    try {
+      let finalPaymentMethod = dateBillPaymentMethod;
+      const amtPaid = Number(dateBillDownPayment) || 0;
+
+      if (dateBillPaymentMethod === "CREDIT" && amtPaid > 0 && amtPaid < dateBillGrandTotal) {
+        finalPaymentMethod = "PARTIAL";
+      } else if (dateBillPaymentMethod === "CREDIT" && amtPaid >= dateBillGrandTotal) {
+        finalPaymentMethod = "CASH";
+      }
+
+      const invoiceNumber = `INV-DB-${Date.now().toString().slice(-8)}`;
+      const chosenDate = new Date(`${dateBillDate}T12:00:00.000Z`);
+
+      const payload = {
+        farmerId: dateBillSelectedFarmer === "walkin" ? undefined : dateBillSelectedFarmer,
+        customerName: dateBillSelectedFarmer === "walkin" ? dateBillCustomerName.trim() : undefined,
+        customerPhone: dateBillSelectedFarmer === "walkin" ? (dateBillCustomerPhone.trim() || undefined) : undefined,
+        invoiceNumber,
+        paymentMethod: finalPaymentMethod,
+        amountPaid: amtPaid,
+        saleDate: chosenDate.toISOString(),
+        isDateBill: true,
+        notes: dateBillNotes.trim() || `Date Bill (${dateBillDate})`,
+        items: dateBillCart.map((item) => ({
+          productId: item.productId,
+          quantity: item.qty,
+          discount: 0,
+        })),
+      };
+
+      const res = await fetch(`${API_BASE_URL}/sales`, {
+        method: "POST",
+        headers: { ...getHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success(`Date Bill generated for ${dateBillDate}!`);
+        
+        const newSaleRecord = {
+          ...data.data,
+          cartItems: dateBillCart,
+          paymentMethod: finalPaymentMethod,
+          downPayment: amtPaid,
+          saleDate: chosenDate.toISOString(),
+          isDateBill: true,
+          notes: payload.notes,
+        };
+
+        setCompletedSale(newSaleRecord);
+        setDateBillsTrack((prev) => [newSaleRecord, ...prev]);
+        setSalesHistory((prev) => [newSaleRecord, ...prev]);
+
+        // Reset cart and fields
+        setDateBillCart([]);
+        setDateBillDownPayment("");
+        setDateBillNotes("");
+        if (dateBillSelectedFarmer === "walkin") {
+          setDateBillCustomerName("");
+          setDateBillCustomerPhone("");
+        }
+      } else {
+        throw new Error(data.message || "Failed to generate Date Bill");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong while generating Date Bill.");
+    } finally {
+      setIsSubmittingDateBill(false);
+    }
+  };
+
+  const filteredDateBillProducts = products.filter((p) => {
+    const formatted = formatProductName(p.name);
+    const term = dateBillSearchTerm.toLowerCase();
+    return p.name.toLowerCase().includes(term) || formatted.toLowerCase().includes(term);
+  });
+
+  const filteredDateBills = dateBillsTrack.filter((bill) => {
+    const term = dateBillTrackSearch.toLowerCase();
+    const invMatch = bill.invoiceNumber?.toLowerCase().includes(term);
+    const custMatch =
+      bill.customerName?.toLowerCase().includes(term) ||
+      bill.farmerId?.name?.toLowerCase().includes(term) ||
+      bill.customerPhone?.includes(term);
+
+    let dateMatch = true;
+    if (dateBillFilterDate) {
+      const bDate = bill.saleDate || bill.createdAt;
+      if (bDate) {
+        const billDateStr = new Date(bDate).toISOString().split("T")[0];
+        dateMatch = billDateStr === dateBillFilterDate;
+      }
+    }
+
+    return (invMatch || custMatch) && dateMatch;
+  });
+
+  const totalDateBillsCount = dateBillsTrack.length;
+  const totalDateBillsAmount = dateBillsTrack.reduce((sum, b) => sum + (b.total ?? b.totalAmount ?? 0), 0);
+  const totalDateBillsCollected = dateBillsTrack.reduce((sum, b) => sum + (b.amountPaid ?? b.downPayment ?? 0), 0);
+  const totalDateBillsDue = dateBillsTrack.reduce((sum, b) => sum + (b.amountDue ?? ((b.total ?? 0) - (b.amountPaid ?? 0))), 0);
+
   // Check if current user is cashier
   const userData = localStorage.getItem("user");
   const isCashier = userData ? JSON.parse(userData).role === "CASHIER" : false;
@@ -407,6 +650,9 @@ export default function SalesPage() {
         <div className="flex flex-col sm:flex-row items-center gap-4">
           <TabsList>
             <TabsTrigger value="pos">Point of Sale</TabsTrigger>
+            <TabsTrigger value="date-bill" className="flex items-center gap-1.5">
+              <Calendar className="h-4 w-4" /> Date Bill
+            </TabsTrigger>
             <TabsTrigger value="history">Sales History</TabsTrigger>
           </TabsList>
         
@@ -743,6 +989,669 @@ export default function SalesPage() {
       </Dialog>
       </TabsContent>
 
+      <TabsContent value="date-bill" className="flex-1 mt-0 space-y-6">
+        {/* Sub-view Switcher & Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card border rounded-xl p-4 shadow-sm">
+          <div>
+            <h3 className="text-xl font-bold tracking-tight flex items-center gap-2 text-foreground">
+              <Calendar className="h-5 w-5 text-primary" /> Date Bill Management
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Generate custom or backdated sales invoices with exact date selection and track all date bills.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant={dateBillSubView === "create" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDateBillSubView("create")}
+              className="flex-1 sm:flex-none gap-1.5 font-medium"
+            >
+              <Plus className="h-4 w-4" /> Generate Date Bill
+            </Button>
+            <Button
+              type="button"
+              variant={dateBillSubView === "track" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setDateBillSubView("track")}
+              className="flex-1 sm:flex-none gap-1.5 font-medium"
+            >
+              <History className="h-4 w-4" /> Track Date Bills ({totalDateBillsCount})
+            </Button>
+          </div>
+        </div>
+
+        {/* Date Bills KPI Summary Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border shadow-sm bg-primary/5 border-primary/20">
+            <CardHeader className="pb-1 pt-3 px-4">
+              <CardTitle className="text-xs font-medium text-primary flex items-center justify-between">
+                <span>Total Date Bills</span>
+                <CalendarDays className="h-4 w-4" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3">
+              <div className="text-2xl font-bold text-primary">{totalDateBillsCount}</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Recorded date bills</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm bg-muted/30">
+            <CardHeader className="pb-1 pt-3 px-4">
+              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
+                <span>Total Value</span>
+                <IndianRupee className="h-4 w-4" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3">
+              <div className="text-2xl font-bold text-foreground">₹{totalDateBillsAmount.toLocaleString("en-IN")}</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Gross date bills volume</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/50">
+            <CardHeader className="pb-1 pt-3 px-4">
+              <CardTitle className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center justify-between">
+                <span>Collected</span>
+                <CheckCircle2 className="h-4 w-4" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3">
+              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">₹{totalDateBillsCollected.toLocaleString("en-IN")}</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Cash / UPI / Card paid</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50">
+            <CardHeader className="pb-1 pt-3 px-4">
+              <CardTitle className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center justify-between">
+                <span>Credit Outstanding</span>
+                <ReceiptText className="h-4 w-4" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-3">
+              <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">₹{totalDateBillsDue.toLocaleString("en-IN")}</div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Credit balance to collect</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* View 1: Generate Date Bill */}
+        {dateBillSubView === "create" && (
+          <div className="space-y-6">
+            {/* Bill Settings Header Bar */}
+            <Card className="border shadow-sm">
+              <CardHeader className="pb-3 border-b bg-muted/20">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" /> Step 1: Select Date & Customer
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* 1. Date Selector */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="dateBillDate" className="text-xs font-semibold flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                    Bill Date *
+                  </Label>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      id="dateBillDate"
+                      type="date"
+                      value={dateBillDate}
+                      onChange={(e) => setDateBillDate(e.target.value)}
+                      className="h-9 font-medium"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={dateBillDate === new Date().toISOString().split("T")[0] ? "default" : "outline"}
+                      className="h-9 text-xs px-2.5 shrink-0"
+                      onClick={() => setDateBillDate(new Date().toISOString().split("T")[0])}
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 text-xs px-2.5 shrink-0"
+                      onClick={() => {
+                        const y = new Date();
+                        y.setDate(y.getDate() - 1);
+                        setDateBillDate(y.toISOString().split("T")[0]);
+                      }}
+                    >
+                      Yesterday
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 2. Customer Selector */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Select Customer / Farmer *</Label>
+                  <Select
+                    value={dateBillSelectedFarmer}
+                    onValueChange={(val) => {
+                      setDateBillSelectedFarmer(val);
+                      if (val !== "walkin") {
+                        const f = farmers.find((x) => x._id === val);
+                        if (f) {
+                          setDateBillCustomerName(f.name);
+                          setDateBillCustomerPhone(f.phone || "");
+                        }
+                      } else {
+                        setDateBillCustomerName("");
+                        setDateBillCustomerPhone("");
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select farmer or Walk-in" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="walkin">Walk-in Customer</SelectItem>
+                      {farmers.map((f: any) => (
+                        <SelectItem key={f._id} value={f._id}>
+                          {f.name} {f.phone ? `(${f.phone})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 3. Walk-in details or Bill Notes */}
+                {dateBillSelectedFarmer === "walkin" ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="dateBillCustName" className="text-xs font-semibold">Name *</Label>
+                      <Input
+                        id="dateBillCustName"
+                        placeholder="Customer name"
+                        value={dateBillCustomerName}
+                        onChange={(e) => setDateBillCustomerName(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="dateBillCustPhone" className="text-xs font-semibold">Phone (Opt)</Label>
+                      <Input
+                        id="dateBillCustPhone"
+                        placeholder="Phone"
+                        value={dateBillCustomerPhone}
+                        onChange={(e) => setDateBillCustomerPhone(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dateBillNotes" className="text-xs font-semibold">Notes / Reference (Optional)</Label>
+                    <Input
+                      id="dateBillNotes"
+                      placeholder="e.g. Backdated dispatch note"
+                      value={dateBillNotes}
+                      onChange={(e) => setDateBillNotes(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Split Grid: Products on Left, Cart & Billing on Right */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+              {/* Product Catalog Card */}
+              <div className="lg:col-span-2 flex flex-col h-full">
+                <Card className="flex-1 flex flex-col h-full border shadow-sm">
+                  <CardHeader className="pb-3 border-b shrink-0">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Plus className="h-4 w-4 text-primary" /> Step 2: Add Products to Date Bill
+                      </CardTitle>
+                      <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search products..."
+                          className="pl-9 bg-muted/50 h-9 text-xs"
+                          value={dateBillSearchTerm}
+                          onChange={(e) => setDateBillSearchTerm(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 p-4 grid grid-cols-2 md:grid-cols-3 gap-3 overflow-y-auto content-start auto-rows-max min-h-[460px] max-h-[620px]">
+                    {filteredDateBillProducts.length === 0 ? (
+                      <div className="col-span-full text-center py-12 text-muted-foreground">
+                        {dateBillSearchTerm ? "No products match your search." : "No products available in inventory."}
+                      </div>
+                    ) : (
+                      filteredDateBillProducts.map((product) => {
+                        const inCart = dateBillCart.find((it) => it.productId === product._id);
+                        return (
+                          <div
+                            key={product._id}
+                            className={`border rounded-lg p-3 hover:border-primary hover:shadow-sm cursor-pointer transition-all bg-card flex flex-col justify-between min-h-[135px] relative group ${inCart ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/30' : ''}`}
+                            onClick={() => addDateBillToCart(product)}
+                          >
+                            <div>
+                              <div className="flex justify-between items-start">
+                                <h4 className="font-medium text-xs sm:text-sm line-clamp-2 leading-tight">
+                                  {formatProductName(product.name)}
+                                </h4>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">{product.category || ""}</p>
+                            </div>
+                            <div className="flex justify-between items-end mt-2 pt-1 border-t border-muted/40">
+                              <div>
+                                <span className="font-semibold text-primary text-sm sm:text-base">₹{product.sellingPrice}</span>
+                                <div className={`text-[11px] mt-0.5 font-medium ${(product.stock || 0) <= 0 ? "text-destructive" : (product.stock || 0) <= 10 ? "text-amber-600" : "text-muted-foreground"}`}>
+                                  Stock: {product.stock || 0}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {inCart && (
+                                  <span className="text-xs font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                                    {inCart.qty}
+                                  </span>
+                                )}
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 rounded-full bg-primary/10 hover:bg-primary hover:text-white"
+                                  disabled={(product.stock || 0) <= 0}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    addDateBillToCart(product);
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Date Bill Cart & Checkout Card */}
+              <div className="lg:col-span-1 flex flex-col h-full">
+                <Card className="flex-1 flex flex-col h-full border shadow-sm">
+                  <CardHeader className="pb-3 border-b bg-muted/20 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold">Date Bill Cart</CardTitle>
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
+                        <Calendar className="h-3 w-3" /> {formatDateDisplay(dateBillDate)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Billing to: <span className="font-semibold text-foreground">{dateBillSelectedFarmer !== "walkin" ? (farmers.find(f => f._id === dateBillSelectedFarmer)?.name || "Registered Farmer") : (dateBillCustomerName || "Walk-in Customer")}</span>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="flex-1 p-0 overflow-y-auto max-h-[300px]">
+                    <Table>
+                      <TableHeader className="bg-muted/40">
+                        <TableRow>
+                          <TableHead className="text-xs">Item</TableHead>
+                          <TableHead className="text-center w-24 text-xs">Qty</TableHead>
+                          <TableHead className="text-right text-xs">Total</TableHead>
+                          <TableHead className="w-8"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dateBillCart.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-10 text-muted-foreground text-xs">
+                              Click products on the left to add items to this date bill
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          dateBillCart.map((item) => (
+                            <TableRow key={item.productId}>
+                              <TableCell className="font-medium text-xs py-2">
+                                <div className="line-clamp-2">{item.name}</div>
+                                <div className="text-[10px] text-muted-foreground">₹{item.price}/unit</div>
+                              </TableCell>
+                              <TableCell className="text-center py-2">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-5 w-5 rounded"
+                                    onClick={() => updateDateBillQty(item.productId, -1)}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="font-semibold text-xs px-1">{item.qty}</span>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-5 w-5 rounded"
+                                    onClick={() => updateDateBillQty(item.productId, 1)}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-xs py-2">
+                                ₹{item.total}
+                              </TableCell>
+                              <TableCell className="py-2 px-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                                  onClick={() => removeDateBillFromCart(item.productId)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+
+                  <CardFooter className="flex flex-col border-t bg-muted/10 pt-3 gap-3 shrink-0">
+                    {/* Payment Settings */}
+                    <div className="w-full space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold">Payment Method</Label>
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {dateBillPaymentMethod}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {["CASH", "UPI", "CREDIT", "CARD"].map((method) => (
+                          <Button
+                            key={method}
+                            type="button"
+                            size="sm"
+                            variant={dateBillPaymentMethod === method ? "default" : "outline"}
+                            className="h-7 text-[11px] px-1"
+                            onClick={() => {
+                              setDateBillPaymentMethod(method);
+                              if (method === "CREDIT") {
+                                setDateBillDownPayment("0");
+                              } else {
+                                setDateBillDownPayment(dateBillGrandTotal.toString());
+                              }
+                            }}
+                          >
+                            {method}
+                          </Button>
+                        ))}
+                      </div>
+
+                      {/* Down payment / amount paid input */}
+                      <div className="space-y-1 pt-1">
+                        <div className="flex justify-between items-center text-xs">
+                          <Label className="text-[11px]">Amount Collected (₹)</Label>
+                          {dateBillPaymentMethod === "CREDIT" && (
+                            <span className="text-[10px] text-amber-600 font-medium">
+                              Ledger Credit: ₹{Math.max(0, dateBillGrandTotal - (Number(dateBillDownPayment) || 0))}
+                            </span>
+                          )}
+                        </div>
+                        <Input
+                          type="number"
+                          value={dateBillDownPayment}
+                          onChange={(e) => setDateBillDownPayment(e.target.value)}
+                          placeholder="Amount paid"
+                          className="h-8 text-xs font-semibold"
+                        />
+                      </div>
+
+                      {dateBillSelectedFarmer === "walkin" && dateBillPaymentMethod === "CREDIT" && (
+                        <div className="text-[11px] text-destructive bg-destructive/10 p-2 rounded">
+                          Walk-in customers cannot take credit. Please select a registered farmer.
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center text-base font-bold border-t pt-2 mt-1">
+                        <span>Total:</span>
+                        <span className="text-primary text-lg">₹{dateBillGrandTotal.toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+
+                    <Button
+                      className="w-full gradient-btn shadow-md py-5 text-sm"
+                      disabled={dateBillCart.length === 0 || isSubmittingDateBill || (dateBillPaymentMethod === "CREDIT" && dateBillSelectedFarmer === "walkin")}
+                      onClick={handleGenerateDateBill}
+                    >
+                      <ReceiptText className="mr-2 h-4 w-4" />
+                      {isSubmittingDateBill ? "Generating..." : `Generate Date Bill (₹${dateBillGrandTotal.toLocaleString("en-IN")})`}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+            </div>
+
+            {/* Recently Generated Date Bills Quick Table */}
+            <Card className="border shadow-sm">
+              <CardHeader className="py-3 px-4 border-b flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <History className="h-4 w-4 text-primary" /> Recently Generated Date Bills
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Quickly view or reprint your latest generated date bills.</p>
+                </div>
+                {dateBillsTrack.length > 0 && (
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="text-xs gap-1 text-primary p-0 h-auto font-medium"
+                    onClick={() => setDateBillSubView("track")}
+                  >
+                    View All ({dateBillsTrack.length}) <ArrowRight className="h-3 w-3" />
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow>
+                      <TableHead className="text-xs">Invoice No</TableHead>
+                      <TableHead className="text-xs">Bill Date</TableHead>
+                      <TableHead className="text-xs">Customer</TableHead>
+                      <TableHead className="text-xs">Amount</TableHead>
+                      <TableHead className="text-xs">Payment</TableHead>
+                      <TableHead className="text-right text-xs">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dateBillsTrack.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-6 text-xs text-muted-foreground">
+                          No date bills generated yet. Use the form above to generate your first date bill.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      dateBillsTrack.slice(0, 5).map((bill) => (
+                        <TableRow key={bill._id || bill.invoiceNumber}>
+                          <TableCell className="font-medium text-xs">
+                            <span className="font-mono">{bill.invoiceNumber || "—"}</span>
+                          </TableCell>
+                          <TableCell className="text-xs font-semibold text-primary">
+                            {formatDateDisplay(bill.saleDate || bill.createdAt)}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {bill.customerName || bill.farmerId?.name || "Walk-in"}
+                          </TableCell>
+                          <TableCell className="text-xs font-semibold">
+                            ₹{(bill.total ?? bill.totalAmount ?? 0).toLocaleString("en-IN")}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+                              bill.paymentMethod === 'CASH' ? 'bg-success/10 text-success' :
+                              bill.paymentMethod === 'CREDIT' ? 'bg-warning/10 text-warning-foreground' :
+                              'bg-primary/10 text-primary'
+                            }`}>
+                              {bill.paymentMethod}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right py-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs gap-1 text-primary hover:bg-primary/10"
+                              onClick={() => handlePrintBill(bill)}
+                            >
+                              <Printer className="h-3.5 w-3.5" /> Print
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* View 2: Complete Date Bills Tracker */}
+        {dateBillSubView === "track" && (
+          <Card className="border shadow-sm">
+            <CardHeader className="border-b">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <History className="h-5 w-5 text-primary" /> Date Bills Audit & Tracking Log
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Search, filter, and reprint all date bills generated across custom and historical dates.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setDateBillSubView("create")}
+                  className="gap-1.5 text-xs font-medium"
+                >
+                  <Plus className="h-3.5 w-3.5" /> New Date Bill
+                </Button>
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search invoice or customer..."
+                    value={dateBillTrackSearch}
+                    onChange={(e) => setDateBillTrackSearch(e.target.value)}
+                    className="pl-9 h-9 text-xs"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
+                    <Filter className="h-3.5 w-3.5" /> Date:
+                  </Label>
+                  <Input
+                    type="date"
+                    value={dateBillFilterDate}
+                    onChange={(e) => setDateBillFilterDate(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                {(dateBillTrackSearch || dateBillFilterDate) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 text-xs gap-1.5 w-fit"
+                    onClick={() => {
+                      setDateBillTrackSearch("");
+                      setDateBillFilterDate("");
+                    }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" /> Reset Filters
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-muted/40">
+                  <TableRow>
+                    <TableHead className="text-xs">Invoice No</TableHead>
+                    <TableHead className="text-xs">Bill Date</TableHead>
+                    <TableHead className="text-xs">Customer</TableHead>
+                    <TableHead className="text-xs">Total Amount</TableHead>
+                    <TableHead className="text-xs">Payment</TableHead>
+                    <TableHead className="text-xs">Notes / Ref</TableHead>
+                    <TableHead className="text-right text-xs">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredDateBills.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
+                        {dateBillTrackSearch || dateBillFilterDate
+                          ? "No date bills found matching your filter criteria."
+                          : "No date bills have been generated yet."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredDateBills.map((bill) => (
+                      <TableRow key={bill._id || bill.invoiceNumber}>
+                        <TableCell className="font-medium text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono">{bill.invoiceNumber || "—"}</span>
+                            <span className="inline-flex items-center text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                              Date Bill
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold text-primary">
+                          {formatDateDisplay(bill.saleDate || bill.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <div className="font-medium">{bill.customerName || bill.farmerId?.name || "Walk-in"}</div>
+                          {bill.customerPhone && (
+                            <div className="text-[10px] text-muted-foreground">{bill.customerPhone}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold">
+                          ₹{(bill.total ?? bill.totalAmount ?? 0).toLocaleString("en-IN")}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${
+                            bill.paymentMethod === 'CASH' ? 'bg-success/10 text-success' :
+                            bill.paymentMethod === 'CREDIT' ? 'bg-warning/10 text-warning-foreground' :
+                            'bg-primary/10 text-primary'
+                          }`}>
+                            {bill.paymentMethod}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">
+                          {bill.notes || "—"}
+                        </TableCell>
+                        <TableCell className="text-right py-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs gap-1 text-primary hover:bg-primary/10"
+                            onClick={() => handlePrintBill(bill)}
+                          >
+                            <Printer className="h-3.5 w-3.5" /> Print
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </TabsContent>
+
       <TabsContent value="history" className="flex-1 mt-0 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="bg-primary/5 border-primary/20">
@@ -793,20 +1702,30 @@ export default function SalesPage() {
                   <TableHead>Customer</TableHead>
                   <TableHead>Total Amount</TableHead>
                   <TableHead>Payment</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredHistory.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No sales found matching your filter.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredHistory.map((sale) => (
                     <TableRow key={sale._id}>
-                      <TableCell className="font-medium">{sale.invoiceNumber || sale._id.slice(-6).toUpperCase()}</TableCell>
-                      <TableCell>{new Date(sale.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{sale.invoiceNumber || sale._id.slice(-6).toUpperCase()}</span>
+                          {sale.isDateBill && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                              <Calendar className="h-3 w-3" /> Date Bill
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{new Date(sale.saleDate || sale.createdAt).toLocaleDateString("en-IN")}</TableCell>
                       <TableCell>{sale.customerName || sale.farmerId?.name || "Walk-in"}</TableCell>
                       <TableCell className="font-semibold text-foreground">₹{(sale.total ?? sale.totalAmount ?? 0).toLocaleString("en-IN")}</TableCell>
                       <TableCell>
@@ -817,6 +1736,16 @@ export default function SalesPage() {
                         }`}>
                           {sale.paymentMethod}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs gap-1 text-primary hover:bg-primary/10"
+                          onClick={() => handlePrintBill(sale)}
+                        >
+                          <Printer className="h-3.5 w-3.5" /> Print
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -874,10 +1803,16 @@ export default function SalesPage() {
                 <h3 className="font-bold text-lg">TAX INVOICE</h3>
                 <div className="text-left mt-2 space-y-0.5">
                   <p>Inv No: {completedSale.invoiceNumber || completedSale._id?.slice(-6).toUpperCase()}</p>
-                  <p>Date: {new Date(completedSale.createdAt || Date.now()).toLocaleString('en-IN')}</p>
+                  <p>Date: {new Date(completedSale.saleDate || completedSale.createdAt || Date.now()).toLocaleString('en-IN')}</p>
                   <p>
-                    Customer: {completedSale.customerName || (selectedFarmer !== 'walkin' ? farmers.find(f => f._id === selectedFarmer)?.name : 'Walk-in')}
+                    Customer: {completedSale.customerName || completedSale.farmerId?.name || (selectedFarmer !== 'walkin' ? farmers.find(f => f._id === selectedFarmer)?.name : 'Walk-in')}
                   </p>
+                  {completedSale.isDateBill && (
+                    <p className="text-xs font-semibold text-primary">Type: Date Bill</p>
+                  )}
+                  {completedSale.notes && (
+                    <p className="text-xs text-muted-foreground">Notes: {completedSale.notes}</p>
+                  )}
                 </div>
                 <div className="border-b border-dashed my-2 border-gray-400"></div>
               </div>
