@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatProductName } from "@/lib/utils";
 
 interface Product {
   _id: string;
@@ -144,7 +145,7 @@ export default function SalesPage() {
         )
       );
     } else {
-      setCart([...cart, { productId: product._id, name: product.name, price: product.sellingPrice, qty: 1, total: product.sellingPrice }]);
+      setCart([...cart, { productId: product._id, name: formatProductName(product.name), price: product.sellingPrice, qty: 1, total: product.sellingPrice }]);
     }
   };
 
@@ -154,9 +155,11 @@ export default function SalesPage() {
 
   const grandTotal = cart.reduce((acc, item) => acc + item.total, 0);
 
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter((p) => {
+    const formatted = formatProductName(p.name);
+    const term = searchTerm.toLowerCase();
+    return p.name.toLowerCase().includes(term) || formatted.toLowerCase().includes(term);
+  });
 
   const handleOpenCheckout = () => {
     if (cart.length === 0) return;
@@ -190,7 +193,7 @@ export default function SalesPage() {
     const balance = grandTotal - downPayment;
 
     const itemRows = (sale.cartItems || sale.items || []).map((item: any) => {
-      const name = item.name || item.productId?.name || "Item";
+      const name = formatProductName(item.name || item.productId?.name || "Item");
       const qty = item.qty || item.quantity || 1;
       const price = item.price || item.unitPrice || 0;
       const total = item.total || item.subtotal || qty * price;
@@ -475,7 +478,7 @@ export default function SalesPage() {
                   >
                     <div>
                       <div className="flex justify-between items-start">
-                        <h4 className="font-medium text-sm line-clamp-2 pr-6 leading-tight">{product.name}</h4>
+                        <h4 className="font-medium text-sm line-clamp-2 pr-6 leading-tight">{formatProductName(product.name)}</h4>
                         {product.description && (
                           <div 
                             className="absolute top-2 right-2 text-muted-foreground hover:text-primary z-10"
@@ -553,7 +556,7 @@ export default function SalesPage() {
                     cart.map((item) => (
                       <TableRow key={item.productId}>
                         <TableCell className="font-medium text-sm py-3">
-                          {item.name}
+                          {formatProductName(item.name)}
                           <div className="text-xs text-muted-foreground">₹{item.price}/unit</div>
                         </TableCell>
                         <TableCell className="text-center font-medium">{item.qty}</TableCell>

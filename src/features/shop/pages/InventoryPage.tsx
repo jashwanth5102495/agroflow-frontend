@@ -47,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatProductName } from "@/lib/utils";
 
 interface InventoryItem {
   _id: string;
@@ -156,7 +157,7 @@ export default function InventoryPage() {
     if (!item.productId?._id) return;
     setEditingProduct({
       _id: item.productId._id,
-      name: item.productId.name || "",
+      name: formatProductName(item.productId.name || ""),
       category: item.productId.category || "",
       unit: item.productId.unit && !["kg", "gm", "g", "ml", "L", "ltr"].includes(item.productId.unit) ? item.productId.unit : "pcs",
       purchasePrice: item.productId.purchasePrice ?? "",
@@ -299,11 +300,16 @@ export default function InventoryPage() {
   const filteredInventory = useMemo(() => {
     if (!searchTerm.trim()) return inventory;
     const lower = searchTerm.toLowerCase();
-    return inventory.filter((item) =>
-      item.productId?.name?.toLowerCase().includes(lower) ||
-      item.productId?.category?.toLowerCase().includes(lower) ||
-      item.productId?.sku?.toLowerCase().includes(lower)
-    );
+    return inventory.filter((item) => {
+      const name = item.productId?.name || "";
+      const formatted = formatProductName(name);
+      return (
+        name.toLowerCase().includes(lower) ||
+        formatted.toLowerCase().includes(lower) ||
+        item.productId?.category?.toLowerCase().includes(lower) ||
+        item.productId?.sku?.toLowerCase().includes(lower)
+      );
+    });
   }, [inventory, searchTerm]);
 
   // Reset to page 1 on search change
@@ -431,7 +437,7 @@ export default function InventoryPage() {
       const profit = sell - buy;
       const margin = sell > 0 ? ((profit / sell) * 100).toFixed(1) : "0";
       const row = [
-        `"${(p.name || "").replace(/"/g, '""')}"`,
+        `"${(formatProductName(p.name) || "").replace(/"/g, '""')}"`,
         `"${(p.category || "").replace(/"/g, '""')}"`,
         `"${(p.sku || "").replace(/"/g, '""')}"`,
         `"${((() => { const u = (p.unit || '').toLowerCase(); return !u || ['kg', 'gm', 'g', 'ml', 'l', 'ltr', 'liter', 'litre', 'unit'].includes(u) ? 'pcs' : (p.unit || 'pcs'); })()).replace(/"/g, '""')}"`,
@@ -802,7 +808,7 @@ export default function InventoryPage() {
                             onClick={() => handleOpenEdit(item)}
                             title="Click to edit product name"
                           >
-                            {item.productId?.name || "Unknown"}
+                            {formatProductName(item.productId?.name) || "Unknown"}
                           </span>
                           
                           {/* Three Dots Action Menu */}

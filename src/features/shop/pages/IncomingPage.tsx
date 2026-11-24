@@ -42,6 +42,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatProductName } from "@/lib/utils";
 
 interface IncomingItem {
   productId: string;
@@ -128,7 +129,7 @@ export default function IncomingPage() {
       if (res.ok && data.success) {
         const prods = (data.data || []).map((inv: any) => ({
           _id: inv.productId?._id,
-          name: inv.productId?.name,
+          name: formatProductName(inv.productId?.name),
           unit: inv.productId?.unit || "pcs",
           category: inv.productId?.category,
           sellingPrice: inv.productId?.sellingPrice || 0,
@@ -424,7 +425,7 @@ export default function IncomingPage() {
 
     const items = voucher.items || [];
     const rowsHtml = items.map((it: any, i: number) => {
-      const name = it.productName || it.name || it.productId?.name || "Product";
+      const name = formatProductName(it.productName || it.name || it.productId?.name || "Product");
       const unit = it.unit || "unit";
       const qty = it.quantity || 0;
       const price = Number(it.purchasePrice || 0).toFixed(2);
@@ -596,7 +597,7 @@ export default function IncomingPage() {
 
       // Table rows
       const tableBody = (voucher.items || []).map((it: any, i: number) => {
-        const name = it.productName || it.name || it.productId?.name || "Product";
+        const name = formatProductName(it.productName || it.name || it.productId?.name || "Product");
         const unit = it.unit || "unit";
         const qty = it.quantity || 0;
         const price = Number(it.purchasePrice || 0).toFixed(2);
@@ -895,7 +896,7 @@ export default function IncomingPage() {
                                   </SelectItem>
                                   {availableProducts.map((p) => (
                                     <SelectItem key={p._id} value={p._id}>
-                                      {p.name} {p.category ? `(${p.category})` : ""}
+                                      {formatProductName(p.name)} {p.category ? `(${p.category})` : ""}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1244,7 +1245,7 @@ export default function IncomingPage() {
                 </thead>
                 <tbody>
                   {(selectedVoucher.items || []).map((it: any, i: number) => {
-                    const itemName = it.productName || it.name || it.productId?.name || "Product";
+                    const itemName = formatProductName(it.productName || it.name || it.productId?.name || "Product");
                     const itemQty = it.quantity;
                     const itemPrice = it.purchasePrice || 0;
                     const itemTotal = it.subtotal || itemQty * itemPrice;
