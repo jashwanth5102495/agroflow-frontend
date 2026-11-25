@@ -856,7 +856,7 @@ export default function SalesPage() {
       <Dialog open={!!infoProduct} onOpenChange={() => setInfoProduct(null)}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>{infoProduct?.name}</DialogTitle>
+            <DialogTitle className="uppercase">{formatProductName(infoProduct?.name)}</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{infoProduct?.description}</p>
@@ -1346,7 +1346,7 @@ export default function SalesPage() {
                           dateBillCart.map((item) => (
                             <TableRow key={item.productId}>
                               <TableCell className="font-medium text-xs py-2">
-                                <div className="line-clamp-2">{item.name}</div>
+                                <div className="line-clamp-2 uppercase">{formatProductName(item.name)}</div>
                                 <div className="text-[10px] text-muted-foreground">₹{item.price}/unit</div>
                               </TableCell>
                               <TableCell className="text-center py-2">
@@ -1862,7 +1862,7 @@ export default function SalesPage() {
                 <tbody>
                   {completedSale.cartItems?.map((item: any, i: number) => (
                     <tr key={i}>
-                      <td className="py-1 pr-1 break-words">{item.name}</td>
+                      <td className="py-1 pr-1 break-words uppercase">{formatProductName(item.name)}</td>
                       <td className="py-1 text-center">{item.qty}</td>
                       <td className="py-1 text-right">{item.price}</td>
                       <td className="py-1 text-right">{item.total}</td>

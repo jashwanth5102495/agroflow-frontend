@@ -783,15 +783,15 @@ export default function NotificationPage() {
   - Suresh Gowda: ₹4,200.00
 
 📈 *TOP PRODUCTS SOLD & PROFIT:*
-• *Infinito-100 ml* (Qty: 4) -> Revenue: ₹2,400.00 | Profit: +₹680.00
-• *M 45 - 1kg Indofil* (Qty: 6) -> Revenue: ₹3,600.00 | Profit: +₹920.00
+• *INFINITO-100 ML* (Qty: 4) -> Revenue: ₹2,400.00 | Profit: +₹680.00
+• *M 45 - 1KG INDOFIL* (Qty: 6) -> Revenue: ₹3,600.00 | Profit: +₹920.00
 
 📦 *STOCK MOVEMENTS (6 products):*
-• *Infinito-100 ml:* Sold 4 pcs | Closing: 16 pcs
+• *INFINITO-100 ML:* Sold 4 pcs | Closing: 16 pcs
 • *DAP (18-46-0):* Sold 10 pcs | Closing: 40 pcs
 
 🚨 *OUT OF STOCK ALERTS:*
-• ❌ Monocrotophos-500 ml (0 pcs)
+• ❌ MONOCROTOPHOS-500 ML (0 pcs)
 
 📄 _Attached PDF contains complete itemized farmer billing, profit breakdown, and full audit ledger._`}
           </div>

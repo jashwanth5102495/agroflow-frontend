@@ -170,7 +170,7 @@ export default function InventoryPage() {
   const handleSaveEditProduct = async () => {
     if (!editingProduct) return;
 
-    const trimmedName = editingProduct.name.trim();
+    const trimmedName = editingProduct.name.trim().toUpperCase();
     if (!trimmedName || trimmedName.length < 2) {
       toast.error("Product name must be at least 2 characters");
       return;
@@ -360,7 +360,7 @@ export default function InventoryPage() {
     setIsSubmitting(true);
     try {
       const productPayload: any = {
-        name: newProduct.name.trim(),
+        name: newProduct.name.trim().toUpperCase(),
         category: newProduct.category?.trim() || "General",
         unit: newProduct.unit?.trim() || "pcs",
         purchasePrice: Number(newProduct.purchasePrice) || 0,
@@ -804,7 +804,7 @@ export default function InventoryPage() {
                       <TableCell className="font-medium">
                         <div className="flex items-center justify-between gap-2 group">
                           <span
-                            className="font-semibold text-foreground text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2"
+                            className="font-semibold text-foreground text-sm cursor-pointer hover:text-primary transition-colors line-clamp-2 uppercase"
                             onClick={() => handleOpenEdit(item)}
                             title="Click to edit product name"
                           >

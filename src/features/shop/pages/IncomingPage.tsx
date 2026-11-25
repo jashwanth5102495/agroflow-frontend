@@ -236,7 +236,7 @@ export default function IncomingPage() {
     setIsCreatingProduct(true);
     try {
       const payload = {
-        name: newProductForm.name.trim(),
+        name: newProductForm.name.trim().toUpperCase(),
         category: newProductForm.category.trim() || "General",
         unit: newProductForm.unit.trim() || "pcs",
         purchasePrice: Number(newProductForm.purchasePrice) || 0,
