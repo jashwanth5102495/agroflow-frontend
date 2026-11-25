@@ -351,7 +351,7 @@ export default function NotificationPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Automated Reports & Notifications</h2>
           <p className="text-muted-foreground text-sm">
-            Receive automated shift PDF summaries and inventory movements directly on your WhatsApp phone.
+            Receive automated daily business summaries, sales, profit calculations, and itemized PDF reports directly on your WhatsApp phone.
           </p>
         </div>
 
@@ -636,64 +636,29 @@ export default function NotificationPage() {
               </div>
             )}
 
-            {/* Shift & Daily Delivery Times */}
+            {/* Daily Report Delivery Time */}
             <div className="space-y-3 pt-2">
-              <Label className="font-semibold flex items-center gap-1.5">
+              <Label className="font-semibold flex items-center gap-1.5 text-base">
                 <Clock className="h-4 w-4 text-primary" />
-                Automated Shift & Daily Delivery Times (24-Hour Format)
+                Daily Closing Report Delivery Time (24-Hour Format)
               </Label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Shift 1 */}
-                <div className="p-3.5 border rounded-lg bg-card space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground flex items-center gap-1">
-                      <Sun className="h-3.5 w-3.5 text-amber-500" /> Shift 1 (Day)
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">10:00 AM – 11:30 PM</span>
-                  </div>
-                  <Input
-                    type="time"
-                    value={shift1Time}
-                    onChange={(e) => setShift1Time(e.target.value)}
-                    className="font-medium"
-                  />
-                  <p className="text-[10px] text-muted-foreground">Delivered at end of Day Shift</p>
+              <div className="p-4 border rounded-xl bg-card space-y-2 max-w-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <Bell className="h-4 w-4 text-emerald-600" /> Daily Closing Business & Profit Report
+                  </span>
+                  <span className="text-xs text-muted-foreground">Full Day Summary</span>
                 </div>
-
-                {/* Shift 2 */}
-                <div className="p-3.5 border rounded-lg bg-card space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground flex items-center gap-1">
-                      <Moon className="h-3.5 w-3.5 text-indigo-500" /> Shift 2 (Night)
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">11:31 PM – 09:59 AM</span>
-                  </div>
-                  <Input
-                    type="time"
-                    value={shift2Time}
-                    onChange={(e) => setShift2Time(e.target.value)}
-                    className="font-medium"
-                  />
-                  <p className="text-[10px] text-muted-foreground">Delivered at end of Night Shift</p>
-                </div>
-
-                {/* Daily Report */}
-                <div className="p-3.5 border rounded-lg bg-card space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground flex items-center gap-1">
-                      <Bell className="h-3.5 w-3.5 text-primary" /> Daily Overview
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">Full 24h Summary</span>
-                  </div>
-                  <Input
-                    type="time"
-                    value={reportTime}
-                    onChange={(e) => setReportTime(e.target.value)}
-                    className="font-medium"
-                  />
-                  <p className="text-[10px] text-muted-foreground">Full store financial summary</p>
-                </div>
+                <Input
+                  type="time"
+                  value={reportTime}
+                  onChange={(e) => setReportTime(e.target.value)}
+                  className="font-medium text-base h-10 w-full"
+                />
+                <p className="text-xs text-muted-foreground">
+                  AgroFlow automatically compiles the full day's sales, collections, profit calculation, credit ledger, and PDF statement, delivering it directly to your WhatsApp at this time.
+                </p>
               </div>
             </div>
 
@@ -708,7 +673,7 @@ export default function NotificationPage() {
                 />
                 <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 <span className="ml-3 text-sm font-semibold text-foreground">
-                  Enable Scheduled Shift & Daily Reports
+                  Enable Scheduled Daily WhatsApp Reports
                 </span>
               </label>
             </div>
@@ -735,60 +700,29 @@ export default function NotificationPage() {
             Instant Test Delivery
           </CardTitle>
           <CardDescription>
-            Verify report formatting, financial breakdowns, and PDF attachments on your phone immediately.
+            Verify report formatting, profit calculations, and PDF attachments on your WhatsApp phone immediately.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Shift 1 Test */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleTestWhatsApp("shift1")}
-              disabled={isTestingShift1 || isTestingShift2 || isTestingDaily}
-              className="h-auto py-3 border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-left flex flex-col items-start gap-1 justify-start"
-            >
-              <div className="flex items-center gap-1.5 font-semibold text-xs text-foreground">
-                <Sun className="h-3.5 w-3.5 text-amber-500" />
-                {isTestingShift1 ? "Sending Shift 1..." : "Send Shift 1 Test"}
-              </div>
-              <span className="text-[10px] text-muted-foreground font-normal">
-                Dispatches Day Shift summary & PDF
-              </span>
-            </Button>
-
-            {/* Shift 2 Test */}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleTestWhatsApp("shift2")}
-              disabled={isTestingShift1 || isTestingShift2 || isTestingDaily}
-              className="h-auto py-3 border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-left flex flex-col items-start gap-1 justify-start"
-            >
-              <div className="flex items-center gap-1.5 font-semibold text-xs text-foreground">
-                <Moon className="h-3.5 w-3.5 text-indigo-500" />
-                {isTestingShift2 ? "Sending Shift 2..." : "Send Shift 2 Test"}
-              </div>
-              <span className="text-[10px] text-muted-foreground font-normal">
-                Dispatches Overnight Shift summary & PDF
-              </span>
-            </Button>
-
-            {/* Full Daily Summary Test */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <Button
               type="button"
               variant="outline"
               onClick={() => handleTestWhatsApp("daily")}
-              disabled={isTestingShift1 || isTestingShift2 || isTestingDaily}
-              className="h-auto py-3 border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-left flex flex-col items-start gap-1 justify-start"
+              disabled={isTestingDaily}
+              className="h-auto py-3.5 px-4 border-emerald-500/40 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-left flex items-center gap-3 w-full sm:w-auto"
             >
-              <div className="flex items-center gap-1.5 font-semibold text-xs text-foreground">
-                <Bell className="h-3.5 w-3.5 text-emerald-600" />
-                {isTestingDaily ? "Sending Daily..." : "Send Daily Test"}
+              <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center shrink-0">
+                <Send className="h-5 w-5" />
               </div>
-              <span className="text-[10px] text-muted-foreground font-normal">
-                Dispatches Full 24h report & PDF
-              </span>
+              <div>
+                <div className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                  {isTestingDaily ? "Dispatching WhatsApp Report..." : "Send Test Daily WhatsApp Report & PDF"}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {isTestingDaily ? "Sending message & branded PDF to your phone..." : "Verify sales, profit, credit ledger, and PDF on WhatsApp now"}
+                </div>
+              </div>
             </Button>
           </div>
 
@@ -820,32 +754,46 @@ export default function NotificationPage() {
         </CardHeader>
         <CardContent className="bg-emerald-50/50 dark:bg-emerald-950/10 p-4 rounded-xl font-mono text-xs text-emerald-950 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-900/40">
           <div className="whitespace-pre-wrap leading-relaxed">
-            {`*☀️ Shift 1 Report (Day / ದಿನದ ಪಾಳಿ)*
-🏪 *Store:* SSB Hi-Tech farm
-📅 *Date:* 2026-11-24
-⏱️ *Window:* 10:00 AM – 11:30 PM
+            {`*🌾 AgroFlow Daily Business & Profit Report*
+*(ದೈನಂದಿನ ವ್ಯಾಪಾರ ಮತ್ತು ಲಾಭದ ವರದಿ)*
 
-📊 *FINANCIAL SUMMARY:*
-• *Total Gross Revenue:* ₹45,230.00
-• *Net Sales:* ₹44,500.00
-• *Invoices Completed:* 18
+🏪 *Store:* SSB Hi-Tech farm
+👤 *Proprietor:* Store Owner
+📅 *Date:* 2026-11-25
+⏱️ *Window:* 00:00 – 23:59 (Full Day)
+
+💰 *FINANCIAL & PROFIT SUMMARY (ಆರ್ಥಿಕ & ಲಾಭದ ಸಾರಾಂಶ):*
+• *Total Sales (ಒಟ್ಟು ಮಾರಾಟ):* ₹45,230.00
+• *Purchase Cost (ಖರೀದಿ ವೆಚ್ಚ / COGS):* ₹31,450.00
+• *Gross Profit (ಒಟ್ಟು ನಿವ್ವಳ ಲಾಭ):* ₹13,780.00 (30.5% margin)
+• *Invoices Completed (ಒಟ್ಟು ಬಿಲ್ಲುಗಳು):* 18
 • *Avg Bill Value:* ₹2,512.78
 
-💳 *PAYMENT BREAKDOWN:*
-• 💵 *Cash:* ₹32,000.00
-• 📱 *UPI:* ₹8,500.00
-• 💳 *Card:* ₹2,500.00
-• 📝 *Credit Due (Udhar):* ₹2,230.00
+💳 *COLLECTIONS & CREDIT BREAKDOWN (ನಗದು & ಸಾಲದ ವಿವರ):*
+• 💵 *Cash Collected (ನಗದು):* ₹32,000.00
+• 📱 *UPI / Online:* ₹8,500.00
+• 💳 *Card / Bank:* ₹2,500.00
+• 📥 *Total Collected in Hand (ಒಟ್ಟು ನಗದು):* ₹43,000.00
+• 📝 *Credit Given Today (ಇಂದಿನ ಸಾಲ):* ₹2,230.00
 
-📦 *STOCK MOVEMENTS (8 items):*
-• *Infinito-100 ml:* Sold 2 pcs | Closing: 9 pcs
-• *M 45 - 1kg Indofil:* Sold 5 pcs | Closing: 15 pcs
+👥 *FARMER CREDIT LEDGER (ರೈತರ ಸಾಲದ ಬಾಕಿ):*
+• *Pending Credit Accounts:* 4 farmers
+• *Total Outstanding Balance (ಒಟ್ಟು ಬಾಕಿ):* ₹18,450.00
+  - Ravi Kumar: ₹6,500.00
+  - Suresh Gowda: ₹4,200.00
+
+📈 *TOP PRODUCTS SOLD & PROFIT:*
+• *Infinito-100 ml* (Qty: 4) -> Revenue: ₹2,400.00 | Profit: +₹680.00
+• *M 45 - 1kg Indofil* (Qty: 6) -> Revenue: ₹3,600.00 | Profit: +₹920.00
+
+📦 *STOCK MOVEMENTS (6 products):*
+• *Infinito-100 ml:* Sold 4 pcs | Closing: 16 pcs
 • *DAP (18-46-0):* Sold 10 pcs | Closing: 40 pcs
 
 🚨 *OUT OF STOCK ALERTS:*
 • ❌ Monocrotophos-500 ml (0 pcs)
 
-📄 _Attached PDF contains complete itemized farmer billing, payments, and full audit ledger._`}
+📄 _Attached PDF contains complete itemized farmer billing, profit breakdown, and full audit ledger._`}
           </div>
         </CardContent>
       </Card>
